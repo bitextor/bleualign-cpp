@@ -7,6 +7,8 @@ Bleualign-cpp is expected to be used together with [document-aligner](https://gi
 - [Boost](https://www.boost.org/) 1.58.0 or later
 - [CMake](https://cmake.org/download/) 3.7.2 or later
 - [GTest](https://github.com/google/googletest) (for tests)
+- [kpu/preprocess](https://github.com/kpu/preprocess) (already included in this repository as a submodule)
+
 
 ### Compile with CMake
 
@@ -14,6 +16,7 @@ Bleualign-cpp is expected to be used together with [document-aligner](https://gi
 mkdir build
 cd build
 cmake .. -DBUILD_TEST=on -DCMAKE_BUILD_TYPE=Release
+# use `cmake .. -DBUILD_TEST=on -DCMAKE_BUILD_TYPE=Release -DPREPROCESS_PATH=/home/user/preprocess/` if you use other 'preprocess' folder
 make -j 4
 tests/test_all
 ```

@@ -9,7 +9,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # options
 option(BUILD_TEST "Build tests" OFF)
 
-
 # flags
 #set(CMAKE_BUILD_TYPE release)
 message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
@@ -25,8 +24,15 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DU_USING_ICU_NAMESPACE=1")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/preprocess)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/preprocess preprocess-bin)
+if( PREPROCESS_PATH )
+	include_directories(${PREPROCESS_PATH})
+	add_subdirectory(${PREPROCESS_PATH} preprocess-bin)
+else()
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/preprocess)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/preprocess preprocess-bin)
+endif()
+
+
 
 # find *.h and *.cpp files
 file(GLOB bleualign_cpp_headers ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.h)
