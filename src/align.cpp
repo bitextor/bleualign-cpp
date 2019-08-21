@@ -288,18 +288,19 @@ namespace align {
       utils::CompressedWriter gw(output_path);
       for (auto m: matches) {
         ss.str("");
-
-        for (size_t i = m.first.from; i <= m.first.to; ++i) {
-          ss << text1_doc.at(i);
+        for (size_t i = m.first.from; i < m.first.to; ++i) {
+          ss << text1_doc[i] << ' ';
         }
+        ss << text1_doc[m.first.to];
 
         ss << "\t";
 
-        for (size_t i = m.second.from; i <= m.second.to; ++i) {
-          ss << text2_doc.at(i);
+        for (size_t i = m.second.from; i < m.second.to; ++i) {
+          ss << text2_doc[i] << ' ';
         }
+        ss << text2_doc[m.second.to];
  
- 	ss << "\t";
+      	ss << "\t";
 
         ss << m.score;
 
