@@ -12,6 +12,7 @@
 #include "util/exception.hh"
 
 #include <iostream>
+#include <unordered_set>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
@@ -38,23 +39,23 @@ std::string MungeFilePath(const std::string &filePath)
 
 }
 
-void LoadExtracted(utils::umap_extracted &umap, const std::string &file_path) {
+void LoadExtracted(utils::umap_extracted &umap, const std::string &file_path, const std::unordered_set<std::string> &documents) {
   util::FilePiece in(MungeFilePath(file_path).c_str());
   std::vector<StringPiece> split_line;
-
   StringPiece l;
   while (in.ReadLineOrEOF(l)) {
     split_line.clear();
     utils::SplitStringPiece(split_line, l, '\t', 0, 2);
 
     std::string key = utils::PieceToString(split_line.at(0));
-    umap[key].push_back(utils::PieceToString(split_line.at(1)));
+    if (documents.find(key) != documents.end()){
+      umap[key].push_back(utils::PieceToString(split_line.at(1)));
+    } 
   }
-
 }
 
 
-bool LoadMatches(utils::matches_list &matches, const std::string &file_path, float threshold) {
+bool LoadMatches(utils::matches_list &matches, const std::string &file_path, float threshold, std::unordered_set<std::string> &documents_lang1, std::unordered_set<std::string> &documents_lang2) {
   try {
     util::FilePiece in(MungeFilePath(file_path).c_str());
 
@@ -64,9 +65,13 @@ bool LoadMatches(utils::matches_list &matches, const std::string &file_path, flo
     while (in.ReadLineOrEOF(l)) {
       split_line.clear();
       utils::SplitStringPiece(split_line, l, '\t', 0, 3);
-
-      if (utils::ToFloat(split_line.at(0)) >= threshold)
-        matches.push_back(std::make_pair(utils::PieceToString(split_line.at(1)), utils::PieceToString(split_line.at(2))));
+      if (utils::ToFloat(split_line.at(0)) >= threshold){
+        std::string url1 = utils::PieceToString(split_line.at(1));
+        std::string url2 = utils::PieceToString(split_line.at(2));
+        matches.push_back(std::make_pair(url1,url2));
+        documents_lang1.insert(url1);
+        documents_lang2.insert(url2);
+      }
     }
 
     return true;
@@ -78,12 +83,14 @@ bool LoadMatches(utils::matches_list &matches, const std::string &file_path, flo
 
 
 void LoadData(utils::AlignData &align_data, const utils::Config &cfg) {
-  bool matchLoaded = LoadMatches(align_data.matches, cfg.matches_path, cfg.doc_threshold);
+  std::unordered_set<std::string> documents_lang1;
+  std::unordered_set<std::string> documents_lang2;
+  bool matchLoaded = LoadMatches(align_data.matches, cfg.matches_path, cfg.doc_threshold, documents_lang1, documents_lang2);
 
   if (matchLoaded) {
-    LoadExtracted(align_data.umap_text1, cfg.text1_path);
-    LoadExtracted(align_data.umap_text2, cfg.text2_path);
-    LoadExtracted(align_data.umap_text1translated, cfg.text1_translated_path);
+    LoadExtracted(align_data.umap_text1, cfg.text1_path, documents_lang1);
+    LoadExtracted(align_data.umap_text2, cfg.text2_path, documents_lang2);
+    LoadExtracted(align_data.umap_text1translated, cfg.text1_translated_path, documents_lang1);
   }
 }
 
