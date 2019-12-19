@@ -1,5 +1,6 @@
 
 #include "ngram.h"
+#include "util/murmur_hash.hh"
 
 #include <iostream>
 #include <string>
@@ -11,13 +12,34 @@
 
 
 namespace ngram {
+    size_t get_ngram_hash(const std::string& a){
+      return util::MurmurHashNative(a.c_str(), a.size());
+    }
+
+    size_t get_ngram_hash(const std::string &a, const std::string &b){
+      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
+      return util::MurmurHashNative(b.c_str(), b.size(), hash);
+    }
+
+    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c){
+      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
+      hash = util::MurmurHashNative(b.c_str(), b.size(), hash);
+      return util::MurmurHashNative(c.c_str(), c.size(), hash);
+    }
+
+    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string& c, const std::string& d){
+      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
+      hash = util::MurmurHashNative(b.c_str(), b.size(), hash);
+      hash = util::MurmurHashNative(c.c_str(), c.size(), hash);
+      return util::MurmurHashNative(d.c_str(), d.size(), hash);
+    }
 
     NGramCounter::NGramCounter(unsigned short n) : ngram_size(n) {
       data.assign(n, ngram_map());
     }
 
-    size_t NGramCounter::get(const NGram &key) const {
-      size_t idx = key.size - 1;
+    size_t NGramCounter::get(size_t key, unsigned short ngram) const {
+      size_t idx = ngram - 1;
       ngram_map::const_iterator it = data.at(idx).find(key);
 
       if (it != data.at(idx).cend()) {
@@ -27,16 +49,16 @@ namespace ngram {
       }
     }
 
-    void NGramCounter::increment(const NGram &ng) {
-      size_t map_idx = ng.size - 1;
-      ngram_map::iterator it = data.at(map_idx).find(ng);
+    void NGramCounter::increment(size_t key, unsigned short ngram) {
+      size_t map_idx = ngram - 1;
+      ngram_map::iterator it = data.at(map_idx).find(key);
 
       if (it != data.at(map_idx).end()) {
         // FOUND
         ++it->second;
       } else {
         // NOT FOUND
-        data.at(map_idx)[ng] = 1;
+        data.at(map_idx)[key] = 1;
       }
 
       ++total_freq;
@@ -68,31 +90,28 @@ namespace ngram {
 
     }
 
-    void NGramCounter::increment_helper(std::unique_ptr<std::vector<std::string>::iterator[]> &token_iterators,
+    void NGramCounter::increment_helper(const std::unique_ptr<std::vector<std::string>::iterator[]> &token_iterators,
                                         unsigned short ngram) {
       switch (ngram) {
         case 4:
-          increment(NGram(*token_iterators[ngram - 4], *token_iterators[ngram - 3],
-                          *token_iterators[ngram - 2], *token_iterators[ngram - 1]));
+          increment(get_ngram_hash(*token_iterators[ngram - 4], *token_iterators[ngram - 3],
+                                  *token_iterators[ngram - 2], *token_iterators[ngram - 1]), 4);
         case 3:
-          increment(NGram(*token_iterators[ngram - 3], *token_iterators[ngram - 2],
-                          *token_iterators[ngram - 1]));
+          increment(get_ngram_hash(*token_iterators[ngram - 3], *token_iterators[ngram - 2],
+                                  *token_iterators[ngram - 1]), 3);
         case 2:
-          increment(NGram(*token_iterators[ngram - 2], *token_iterators[ngram - 1]));
+          increment(get_ngram_hash(*token_iterators[ngram - 2], *token_iterators[ngram - 1]), 2);
         case 1:
-          increment(NGram(*token_iterators[ngram - 1]));
+          increment(get_ngram_hash(*token_iterators[ngram - 1]), 1);
           break;
       }
     }
 
-    size_t NGramCounter::count_tokens() {
+    size_t NGramCounter::count_tokens() const {
       size_t num = 0;
       for (auto s: data) {
         num += s.size();
       }
       return num;
     }
-
-    bool operator==(const NGram &a, const NGram &b) {return a.hash == b.hash;}
-    size_t hash_value(const NGram &ng) {return ng.hash;}
 }

@@ -2,68 +2,21 @@
 #ifndef FAST_BLEUALIGN_NGRAMS_H
 #define FAST_BLEUALIGN_NGRAMS_H
 
-#include "util/murmur_hash.hh"
-
 #include <iostream>
 #include <string>
 #include <vector>
 #include <iterator>
-#include <memory>
-#include <type_traits>
 
 #include <boost/unordered_map.hpp>
 
 namespace ngram {
 
-    struct NGram {
-      size_t hash;
-      size_t size;
+    size_t get_ngram_hash(const std::string &a);
+    size_t get_ngram_hash(const std::string &a, const std::string &b);
+    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c);
+    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c, const std::string &d);
 
-      // unigram
-      NGram(const std::string &a) {
-        // calc hash of a 
-        hash = 0;
-        compute_hash(a);
-        size = 1;
-      }
-
-      // bigram
-      NGram(const std::string &a, const std::string &b) {
-        hash = 0;
-        compute_hash(a);
-        compute_hash(b);
-        size = 2;
-      }
-
-      // trigram
-      NGram(const std::string &a, const std::string &b, const std::string &c) {
-        hash = 0;
-        compute_hash(a);
-        compute_hash(b);
-        compute_hash(c);
-        size = 3;
-      }
-
-      // quadgram
-      NGram(const std::string &a, const std::string &b, const std::string &c, const std::string &d){
-        hash = 0;
-        compute_hash(a);
-        compute_hash(b);
-        compute_hash(c);
-        compute_hash(d);
-        size = 4;
-      }
-
-      void compute_hash(const std::string& a){
-        hash = util::MurmurHashNative(a.c_str(), a.size(), hash);
-      }
-
-    };
-
-    bool operator==(const NGram &a, const NGram &b);
-    size_t hash_value(const NGram &ng);
-
-    typedef boost::unordered_map<NGram, size_t> ngram_map;
+    typedef boost::unordered_map<size_t, size_t> ngram_map;
 
     class NGramCounter {
 
@@ -73,30 +26,30 @@ namespace ngram {
 
         ~NGramCounter() {};
 
-        size_t get(const NGram &key) const;
+        size_t get(size_t key, unsigned short ngram) const;
 
-        ngram_map::iterator begin(size_t ngram) {
+        ngram_map::iterator begin(unsigned short ngram) {
           return data.at(ngram - 1).begin();
         }
 
-        ngram_map::iterator end(size_t ngram) {
+        ngram_map::iterator end(unsigned short ngram) {
           return data.at(ngram - 1).end();
         }
 
-        void increment(const NGram &ng);
+        void increment(size_t key, unsigned short ngram);
 
         void process(std::vector<std::string> &tokens);
 
         inline void
-        increment_helper(std::unique_ptr<std::vector<std::string>::iterator[]> &token_iterators, unsigned short ngram);
+        increment_helper(const std::unique_ptr<std::vector<std::string>::iterator[]> &token_iterators, unsigned short ngram);
 
-        size_t count_tokens();
+        size_t count_tokens() const;
 
-        size_t count_frequencies() {
+        size_t count_frequencies() const {
           return total_freq;
         }
 
-        size_t processed() {
+        size_t processed() const {
           return tokens_processed;
         }
 
