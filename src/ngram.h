@@ -2,88 +2,68 @@
 #ifndef FAST_BLEUALIGN_NGRAMS_H
 #define FAST_BLEUALIGN_NGRAMS_H
 
+#include "util/murmur_hash.hh"
 
 #include <iostream>
 #include <string>
 #include <vector>
 #include <iterator>
 #include <memory>
+#include <type_traits>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/unordered_map.hpp>
-
 
 namespace ngram {
 
-    struct NGramGeneral {
+    struct NGram {
+      size_t hash;
+      size_t size;
 
-        typedef std::string ngram_type;
+      // unigram
+      NGram(const std::string &a) {
+        // calc hash of a 
+        hash = 0;
+        compute_hash(a);
+        size = 1;
+      }
 
-        virtual size_t size() const = 0;
+      // bigram
+      NGram(const std::string &a, const std::string &b) {
+        hash = 0;
+        compute_hash(a);
+        compute_hash(b);
+        size = 2;
+      }
 
-        virtual ngram_type at(size_t pos) const = 0;
+      // trigram
+      NGram(const std::string &a, const std::string &b, const std::string &c) {
+        hash = 0;
+        compute_hash(a);
+        compute_hash(b);
+        compute_hash(c);
+        size = 3;
+      }
 
-    };
+      // quadgram
+      NGram(const std::string &a, const std::string &b, const std::string &c, const std::string &d){
+        hash = 0;
+        compute_hash(a);
+        compute_hash(b);
+        compute_hash(c);
+        compute_hash(d);
+        size = 4;
+      }
 
-    template<size_t N, typename... Args>
-    struct NGram : public NGramGeneral {
-
-        const size_t ngram_size = N;
-        ngram_type data[N];
-
-        NGram(Args... args) {
-          size_t idx = 0;
-          for (auto s: {args...}) {
-            data[idx++] = s;
-          }
-        }
-
-        size_t size() const {
-          return ngram_size;
-        }
-
-        ngram_type at(size_t pos) const {
-          if (pos >= ngram_size) {
-            throw "Array index out of bounds!";
-          }
-
-          return data[pos];
-        }
-
-    };
-
-    typedef NGram<4, std::string, std::string, std::string, std::string> quadragram;
-    typedef NGram<3, std::string, std::string, std::string> trigram;
-    typedef NGram<2, std::string, std::string> bigram;
-    typedef NGram<1, std::string> unigram;
-
-
-    struct NGramContainer {
-
-        boost::shared_ptr<NGramGeneral> ng;
-
-        NGramContainer(std::string a) : ng(boost::make_shared<unigram>(a)) {};
-
-        NGramContainer(std::string a, std::string b) : ng(boost::make_shared<bigram>(a, b)) {};
-
-        NGramContainer(std::string a, std::string b, std::string c) : ng(boost::make_shared<trigram>(a, b, c)) {};
-
-        NGramContainer(std::string a, std::string b, std::string c, std::string d) : ng(
-                boost::make_shared<quadragram>(a, b, c, d)) {};
-
-        boost::shared_ptr<NGramGeneral> data() const {
-          return ng;
-        }
+      void compute_hash(const std::string& a){
+        hash = util::MurmurHashNative(a.c_str(), a.size(), hash);
+      }
 
     };
 
-    bool operator==(const NGramContainer &a, const NGramContainer &b);
+    bool operator==(const NGram &a, const NGram &b);
+    size_t hash_value(const NGram &ng);
 
-    std::size_t hash_value(const NGramContainer &e);
-
-    typedef boost::unordered_map<NGramContainer, size_t> ngram_map;
-
+    typedef boost::unordered_map<NGram, size_t> ngram_map;
 
     class NGramCounter {
 
@@ -93,7 +73,7 @@ namespace ngram {
 
         ~NGramCounter() {};
 
-        int get(const NGramContainer &key);
+        size_t get(const NGram &key) const;
 
         ngram_map::iterator begin(size_t ngram) {
           return data.at(ngram - 1).begin();
@@ -103,7 +83,7 @@ namespace ngram {
           return data.at(ngram - 1).end();
         }
 
-        void increment(const NGramContainer &ng);
+        void increment(const NGram &ng);
 
         void process(std::vector<std::string> &tokens);
 
@@ -119,8 +99,6 @@ namespace ngram {
         size_t processed() {
           return tokens_processed;
         }
-
-        size_t get_map_index(const NGramContainer &key);
 
     private:
 
