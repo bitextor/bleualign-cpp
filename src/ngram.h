@@ -11,10 +11,7 @@
 
 namespace ngram {
 
-    size_t get_ngram_hash(const std::string &a);
-    size_t get_ngram_hash(const std::string &a, const std::string &b);
-    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c);
-    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c, const std::string &d);
+    size_t get_token_hash(const std::string &token, size_t seed = 0);
 
     typedef boost::unordered_map<size_t, size_t> ngram_map;
 

@@ -12,26 +12,8 @@
 
 
 namespace ngram {
-    size_t get_ngram_hash(const std::string& a){
-      return util::MurmurHashNative(a.c_str(), a.size());
-    }
-
-    size_t get_ngram_hash(const std::string &a, const std::string &b){
-      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
-      return util::MurmurHashNative(b.c_str(), b.size(), hash);
-    }
-
-    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string &c){
-      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
-      hash = util::MurmurHashNative(b.c_str(), b.size(), hash);
-      return util::MurmurHashNative(c.c_str(), c.size(), hash);
-    }
-
-    size_t get_ngram_hash(const std::string &a, const std::string &b, const std::string& c, const std::string& d){
-      size_t hash = util::MurmurHashNative(a.c_str(), a.size());
-      hash = util::MurmurHashNative(b.c_str(), b.size(), hash);
-      hash = util::MurmurHashNative(c.c_str(), c.size(), hash);
-      return util::MurmurHashNative(d.c_str(), d.size(), hash);
+    size_t get_token_hash(const std::string &token, size_t seed){
+      return util::MurmurHashNative(token.c_str(), token.size(), seed);
     }
 
     NGramCounter::NGramCounter(unsigned short n) : ngram_size(n) {
@@ -92,18 +74,10 @@ namespace ngram {
 
     void NGramCounter::increment_helper(const std::unique_ptr<std::vector<std::string>::iterator[]> &token_iterators,
                                         unsigned short ngram) {
-      switch (ngram) {
-        case 4:
-          increment(get_ngram_hash(*token_iterators[ngram - 4], *token_iterators[ngram - 3],
-                                  *token_iterators[ngram - 2], *token_iterators[ngram - 1]), 4);
-        case 3:
-          increment(get_ngram_hash(*token_iterators[ngram - 3], *token_iterators[ngram - 2],
-                                  *token_iterators[ngram - 1]), 3);
-        case 2:
-          increment(get_ngram_hash(*token_iterators[ngram - 2], *token_iterators[ngram - 1]), 2);
-        case 1:
-          increment(get_ngram_hash(*token_iterators[ngram - 1]), 1);
-          break;
+      size_t hash = 0;
+      for (unsigned short i = 1; i <= ngram; ++i){
+        hash = get_token_hash(*token_iterators[ngram-i], hash);
+        increment(hash, i);
       }
     }
 
