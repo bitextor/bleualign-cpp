@@ -3,7 +3,7 @@
 #include "scorer.h"
 #include "ngram.h"
 #include "search.h"
-#include "util/string_piece.hh"
+#include "util/fake_ofstream.hh"
 #include "utils/common.h"
 #include "utils/logging.h"
 
@@ -12,22 +12,17 @@
 #include <boost/make_unique.hpp>
 #include <vector>
 #include <memory>
-
-#include "utils/CompressedWriter.h"
+#include <sys/types.h>
 
 
 namespace align {
 
-    void AlignDocuments(const std::string &output_path, const utils::AlignData &align_data, const StringPiece matched_text1_uri,
-                        StringPiece matched_text2_uri, double threshold) {
-      //LOG_INFO << "Processing " << matched_text1_uri << " and " << matched_text2_uri;
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold) {
 
       utils::matches_vec matches;
 
-      Align(matches, align_data.umap_text1translated.at(matched_text1_uri.data()),
-            align_data.umap_text2.at(matched_text2_uri.data()), threshold);
-      WriteAlignedTextToFile(output_path, matches, align_data.umap_text1.at(matched_text1_uri.data()),
-                             align_data.umap_text2.at(matched_text2_uri.data()));
+      Align(matches, doc_pair.text1translated, doc_pair.text2, threshold);
+      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2);
 
     }
 
@@ -279,35 +274,24 @@ namespace align {
       }
     }
 
-    void WriteAlignedTextToFile(const std::string &output_path, 
-                                const utils::matches_vec &matches,
+    void WriteAlignedTextToStdout(const utils::matches_vec &matches,
                                 const std::vector<std::string> &text1_doc,
-                                const std::vector<std::string> &text2_doc) {
-
-      std::stringstream ss;
-      utils::CompressedWriter gw(output_path);
+                                const std::vector<std::string> &text2_doc,
+                                const std::string& url1,
+                                const std::string& url2) {
+      util::FakeOFStream out(STDOUT_FILENO);
       for (auto m: matches) {
-        ss.str("");
+        out << url1 << "\t" << url2 << "\t";
         for (size_t i = m.first.from; i < m.first.to; ++i) {
-          ss << text1_doc[i] << ' ';
+          out << text1_doc[i] << ' ';
         }
-        ss << text1_doc[m.first.to];
-
-        ss << "\t";
+        out << text1_doc[m.first.to] << "\t";
 
         for (size_t i = m.second.from; i < m.second.to; ++i) {
-          ss << text2_doc[i] << ' ';
+          out << text2_doc[i] << ' ';
         }
-        ss << text2_doc[m.second.to];
- 
-      	ss << "\t";
-
-        ss << m.score;
-
-        ss << "\n";
-
-        std::string line = ss.str();
-        gw.write(line);
+        out << text2_doc[m.second.to] << "\t";
+        out << m.score << "\n";	
       }
     }
 

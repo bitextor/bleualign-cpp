@@ -13,8 +13,7 @@
 
 namespace align {
 
-    void AlignDocuments(const std::string &output_path, const utils::AlignData &align_data, const StringPiece matched_text1_uri,
-                        StringPiece matched_text2_uri, double threshold);
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold);
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
                const std::vector<std::string> &text2_doc, double threshold);
@@ -39,8 +38,7 @@ namespace align {
 
     void FillMatches(std::unique_ptr<int[]> &arr1, std::unique_ptr<int[]> &arr2, utils::match m);
 
-    void WriteAlignedTextToFile(const std::string &output_path, const utils::matches_vec &matches,
-                                const std::vector<std::string> &text1_doc, const std::vector<std::string> &text2_doc);
+    void WriteAlignedTextToStdout(const utils::matches_vec &matches, const std::vector<std::string> &text1_doc, const std::vector<std::string> &text2_doc, const std::string& url1, const std::string& url2);
 
 
 } // namespace align

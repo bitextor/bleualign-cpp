@@ -58,20 +58,16 @@ namespace utils {
 
 
     struct Config {
-        std::string text1_path;
-        std::string text2_path;
-        std::string text1_translated_path;
-        std::string output_dir;
-        std::string matches_path;
-        float doc_threshold;
+        std::string documents_path;
         float bleu_threshold;
     };
 
-    struct AlignData {
-        matches_list matches;
-        umap_extracted umap_text1;
-        umap_extracted umap_text2;
-        umap_extracted umap_text1translated;
+    struct DocumentPair {
+        std::string url1;
+        std::string url2;
+        std::vector<std::string> text1;
+        std::vector<std::string> text2;
+        std::vector<std::string> text1translated;
     };
 
     std::string PieceToString(StringPiece sp);
@@ -81,7 +77,8 @@ namespace utils {
     void SplitStringPiece(std::vector<StringPiece> &vec, StringPiece sp, int (*check_func)(int), size_t pos = 0,
                           size_t max_split = -1);
 
-
+    void SplitString(std::vector<std::string> &vec, const std::string &str, char c);
+    std::string b64decode(const StringPiece &data);
 } // namespace utils
 
 
