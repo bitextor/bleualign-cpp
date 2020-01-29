@@ -46,6 +46,7 @@ namespace ngram {
     }
 
     void NGramCounter::process(std::vector<std::string> &tokens) {
+      if (tokens.size() == 0) return;
       // set-up iterators
       std::unique_ptr<std::vector<std::string>::iterator[]> token_iterators(
               boost::make_unique<std::vector<std::string>::iterator[]>(ngram_size));
@@ -53,7 +54,6 @@ namespace ngram {
         token_iterators[i] = tokens.begin();
         std::advance(token_iterators[i], i);
       }
-
       // base
       for (unsigned short i = 0; i < ngram_size - 1; ++i) {
         increment_helper(token_iterators, i + 1);

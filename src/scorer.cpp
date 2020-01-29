@@ -2,7 +2,6 @@
 #include "scorer.h"
 #include "ngram.h"
 #include "utils/common.h"
-#include "util/string_piece.hh"
 
 #include <iostream>
 #include <boost/regex.hpp>

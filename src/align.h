@@ -4,7 +4,6 @@
 
 
 #include "search.h"
-#include "util/string_piece.hh"
 #include "utils/common.h"
 
 #include <string>

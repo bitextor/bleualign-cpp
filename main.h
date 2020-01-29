@@ -7,6 +7,6 @@
 
 #include <string>
 
-void Process(const utils::Config &cfg);
+void Process(float bleu_threshold);
 
 #endif //BLEUALIGN_CPP_MAIN_H
