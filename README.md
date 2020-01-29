@@ -28,7 +28,7 @@ Bleualign-cpp takes two files containing texts in two different languages and al
 
 Input format is `url1 <tab> url2 <tab> text1 <tab> text2 <tab> text1translated` per line. Every text column is encoded as base64. After decoding text columns, they should contain a single sentence per line. The translation (`text1translated`) should correspond line-by-line with the original text (`text1`).
 
-Bleualign-cpp outputs aligned sentences to standard output.
+Bleualign-cpp outputs aligned sentences to standard output. Output format is: `url1 <tab> url2 <tab> source_sentence <tab> target_sentence <tab> score` per line.
 
 ##### Required Parameters
 * **--documents** - Input file that contains one document pair per line, format described above
