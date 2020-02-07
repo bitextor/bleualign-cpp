@@ -69,10 +69,10 @@ namespace align {
           for (size_t order = 1; order <= ngram_size; ++order) {
             map_it = test_counts.begin(order);
             while (map_it != test_counts.end(order)) {
-              int cooktarget_count = cooktarget.at(c).get(map_it->first);
+              int cooktarget_count = cooktarget.at(c).get(map_it->first, order);
               if (cooktarget_count > 0) {
                 // update correct counts
-                int test_count = test_counts.get(map_it->first);
+                int test_count = test_counts.get(map_it->first, order);
                 cooked_test_correct.at(order - 1) += std::min(cooktarget_count, test_count);
               }
 
