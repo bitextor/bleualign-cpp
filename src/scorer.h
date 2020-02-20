@@ -42,9 +42,6 @@ namespace scorer {
 
     void normalize(std::vector<std::string> &token_vec, const std::string &text, const std::string &language_type);
 
-    void
-    cook_ref_set(std::vector<ngram::NGramCounter> &counter_vec, const std::string &text, unsigned short ngram_size);
-
 }
 
 #endif //FAST_BLEUALIGN_SCORER_H

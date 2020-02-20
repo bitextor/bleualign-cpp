@@ -25,12 +25,12 @@ namespace ngram {
 
         size_t get(size_t key, unsigned short ngram) const;
 
-        ngram_map::iterator begin(unsigned short ngram) {
-          return data.at(ngram - 1).begin();
+        ngram_map::const_iterator cbegin(unsigned short ngram) const{
+          return data.at(ngram - 1).cbegin();
         }
 
-        ngram_map::iterator end(unsigned short ngram) {
-          return data.at(ngram - 1).end();
+        ngram_map::const_iterator cend(unsigned short ngram) const {
+          return data.at(ngram - 1).cend();
         }
 
         void increment(size_t key, unsigned short ngram);
