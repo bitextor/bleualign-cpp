@@ -836,10 +836,10 @@ namespace {
       ASSERT_EQ(ngc_lorem4.get(ngram::get_token_hash("est",
                                 ngram::get_token_hash("quaerat")), 2), 3);
 
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(1), ngc_lorem4.end(1)), 76);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(2), ngc_lorem4.end(2)), 651);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(3), ngc_lorem4.end(3)), 930);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(4), ngc_lorem4.end(4)), 940);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(1), ngc_lorem4.cend(1)), 76);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(2), ngc_lorem4.cend(2)), 651);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(3), ngc_lorem4.cend(3)), 930);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(4), ngc_lorem4.cend(4)), 940);
 
 
     }

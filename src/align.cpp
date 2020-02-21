@@ -40,69 +40,70 @@ namespace align {
     void EvalSents(std::vector<utils::scoremap> &scorelist, const std::vector<std::string> &text1translated_doc,
                    const std::vector<std::string> &text2_doc, unsigned short ngram_size, size_t maxalternatives) {
 
-      std::vector<ngram::NGramCounter> cooktarget;
-      for (size_t i = 0; i < text2_doc.size(); ++i) {
-        scorer::cook_ref_set(cooktarget, text2_doc.at(i), ngram_size);
+      std::vector<ngram::NGramCounter> src_corpus_ngrams;
+      std::vector<std::string> text_normalized;
+
+      // count ngrams for each sentence of the source corpus
+      for (const std::string &src_sentence : text2_doc) {
+        scorer::normalize(text_normalized, src_sentence, "western");
+        ngram::NGramCounter counter (ngram_size);
+        counter.process(text_normalized);
+        src_corpus_ngrams.push_back(counter);
       }
 
-      for (size_t trans_i = 0; trans_i < text1translated_doc.size(); ++trans_i) {
-        // copied over from bleu.py to minimize redundancy
-        std::vector<std::string> test_normalized;
-        scorer::normalize(test_normalized, text1translated_doc.at(trans_i), "western");
+      // for each sentence of the target corpus, compute the bleu score with each sentence of the source
+      // keep <maxalternatives> best options
+      for (const std::string &trg_sentence : text1translated_doc) {
 
-        std::vector<size_t> guess;
-        for (unsigned short k = 0; k < ngram_size; ++k) {
-          guess.push_back(std::max<unsigned short>(test_normalized.size() - k, 0));
-        }
-
-        ngram::NGramCounter test_counts(ngram_size);
-        test_counts.process(test_normalized);
+        // tokenize and count ngrams of the target sentence
+        scorer::normalize(text_normalized, trg_sentence, "western");
+        ngram::NGramCounter trg_counts(ngram_size);
+        trg_counts.process(text_normalized);
 
         utils::scoremap smap;
-        for (size_t c = 0; c < cooktarget.size(); ++c) {
+        std::vector<int> correct;
+        int src_ngram_freq, trg_ngram_freq;
 
+        size_t src_corpus_i = 0;
+        for (const ngram::NGramCounter &src_counts : src_corpus_ngrams) {
           float logbleu = 0.0;
-          std::vector<int> cooked_test_correct;
-          cooked_test_correct.assign(ngram_size, 0);
+          correct.assign(ngram_size, 0);
 
-          ngram::ngram_map::iterator map_it;
-          for (size_t order = 1; order <= ngram_size; ++order) {
-            map_it = test_counts.begin(order);
-            while (map_it != test_counts.end(order)) {
-              int cooktarget_count = cooktarget.at(c).get(map_it->first, order);
-              if (cooktarget_count > 0) {
-                // update correct counts
-                int test_count = test_counts.get(map_it->first, order);
-                cooked_test_correct.at(order - 1) += std::min(cooktarget_count, test_count);
+          ngram::ngram_map::const_iterator map_it;
+          // compute sum of precision scores for ngrams of order 1 to <ngram_size>
+          for (unsigned short order = 1; order <= ngram_size; ++order) {
+            map_it = trg_counts.cbegin(order);
+            while (map_it != trg_counts.cend(order)) {
+              src_ngram_freq = src_counts.get(map_it->first, order);
+              if (src_ngram_freq > 0) {
+                trg_ngram_freq = trg_counts.get(map_it->first, order);
+                correct.at(order-1) += std::min(src_ngram_freq, trg_ngram_freq);
               }
-
               ++map_it;
             }
-
-            // logbleu
-            logbleu += log(cooked_test_correct.at(order - 1)) - log(guess.at(order - 1));
+            logbleu += log(correct.at(order-1)) - log(std::max<int>(trg_counts.processed() - order + 1, 0));
           }
 
+          // apply uniform weights (wn = 1/N)
           logbleu /= ngram_size;
-          logbleu += std::min<float>(0, 1 - static_cast<float>(cooktarget.at(c).processed()) /
-                                            static_cast<float>(test_normalized.size()));
-          float score = exp(logbleu);
+          // brevity penalty
+          logbleu += std::min<float>(0, 1 - static_cast<float>(src_counts.processed()) / static_cast<float>(trg_counts.processed()));
 
-          if (score > 0) {
+          float src2trg_score = exp(logbleu);
+
+          if (src2trg_score > 0) {
             // calculate bleu score in reverse direction
             logbleu = 0.0;
             for (size_t order = 1; order <= ngram_size; ++order) {
-              logbleu += log(cooked_test_correct.at(order - 1)) -
-                         log(std::max<int>(int(cooktarget.at(c).processed()) - order + 1, 0));
+              logbleu += log(correct.at(order-1)) - log(std::max<int>(src_counts.processed() - order + 1, 0));
             }
             logbleu /= ngram_size;
-            logbleu += std::min<float>(0, 1 - static_cast<float>(test_normalized.size()) /
-                                              static_cast<float>(cooktarget.at(c).processed()));
-            float score2 = exp(logbleu);
-            float meanscore = (2 * score * score2) / (score + score2);
-
-            smap.insert(utils::scoremap::value_type(meanscore, std::make_pair(c, cooked_test_correct)));
+            logbleu += std::min<float>(0, 1 - static_cast<float>(trg_counts.processed()) / static_cast<float>(src_counts.processed()));
+            float trg2src_score = exp(logbleu);
+            float meanscore = (2 * src2trg_score * trg2src_score) / (src2trg_score + trg2src_score);
+            smap.insert(utils::scoremap::value_type(meanscore, std::make_pair(src_corpus_i, correct)));
           }
+          ++src_corpus_i;
         }
 
         // keep top N items
@@ -114,6 +115,7 @@ namespace align {
 
         scorelist.push_back(smap);
       }
+
     }
 
     void GapFiller(utils::matches_vec &matched, const std::vector<std::string> &text1translated_doc,
@@ -294,6 +296,5 @@ namespace align {
         out << m.score << "\n";	
       }
     }
-
 
 } // namespace align
