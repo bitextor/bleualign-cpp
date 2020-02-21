@@ -39,7 +39,10 @@ int main(int argc, char *argv[]) {
   po::notify(vm);
 
   if (vm.count("help")) {
-    std::cerr << desc << std::endl;
+    std::cerr << "Reads matched documents from stdin, outputs aligned sentences to stdout\n" <<
+	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64\n" <<
+	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score\n\n" <<
+	    desc << std::endl;
     return 1;
   }
 
