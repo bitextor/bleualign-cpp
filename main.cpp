@@ -18,9 +18,9 @@ void Process(float bleu_threshold) {
     utils::SplitString(split_line, line, '\t');
     doc_pair.url1 = split_line[0];
     doc_pair.url2 = split_line[1];
-    utils::SplitString(doc_pair.text1, utils::b64decode(split_line[2]), '\n');
-    utils::SplitString(doc_pair.text2, utils::b64decode(split_line[3]), '\n');
-    utils::SplitString(doc_pair.text1translated, utils::b64decode(split_line[4]), '\n');
+    utils::DecodeAndSplit(doc_pair.text1, split_line[2], '\n');
+    utils::DecodeAndSplit(doc_pair.text2, split_line[3], '\n');
+    utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n');
     align::AlignDocument(doc_pair, bleu_threshold);
     matches.clear();
   }

@@ -10,9 +10,10 @@
 #include <map>
 #include <set>
 
+#include <boost/archive/iterators/binary_from_base64.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
 
 namespace utils {
-
 
     struct match {
 
@@ -63,9 +64,17 @@ namespace utils {
         std::vector<std::string> text1translated;
     };
 
+    typedef boost::archive::iterators::transform_width<
+        boost::archive::iterators::binary_from_base64<
+            std::string::const_iterator
+        >,
+        8,
+        6
+    >
+    binary_text;
 
-    void SplitString(std::vector<std::string> &vec, const std::string &str, char c);
-    std::string b64decode(const std::string &data);
+    void SplitString(std::vector<std::string> &vec, const std::string &str, char delimiter);
+    void DecodeAndSplit(std::vector<std::string> &vec, const std::string &str, char delimiter);
 } // namespace utils
 
 
