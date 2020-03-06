@@ -3,7 +3,6 @@
 #include "scorer.h"
 #include "ngram.h"
 #include "search.h"
-#include "util/fake_ofstream.hh"
 #include "utils/common.h"
 
 #include <algorithm>
@@ -11,8 +10,7 @@
 #include <boost/make_unique.hpp>
 #include <vector>
 #include <memory>
-#include <sys/types.h>
-
+#include <iomanip>
 
 namespace align {
 
@@ -280,19 +278,18 @@ namespace align {
                                 const std::vector<std::string> &text2_doc,
                                 const std::string& url1,
                                 const std::string& url2) {
-      util::FakeOFStream out(STDOUT_FILENO);
       for (auto m: matches) {
-        out << url1 << "\t" << url2 << "\t";
+        std::cout << url1 << "\t" << url2 << "\t";
         for (size_t i = m.first.from; i < m.first.to; ++i) {
-          out << text1_doc[i] << ' ';
+          std::cout << text1_doc[i] << ' ';
         }
-        out << text1_doc[m.first.to] << "\t";
+        std::cout << text1_doc[m.first.to] << "\t";
 
         for (size_t i = m.second.from; i < m.second.to; ++i) {
-          out << text2_doc[i] << ' ';
+          std::cout << text2_doc[i] << ' ';
         }
-        out << text2_doc[m.second.to] << "\t";
-        out << m.score << "\n";	
+        std::cout << text2_doc[m.second.to] << "\t";
+        std::cout << std::fixed << std::setprecision(6) << m.score << "\n";
       }
     }
 
