@@ -5,7 +5,6 @@
 #include "search.h"
 #include "util/fake_ofstream.hh"
 #include "utils/common.h"
-#include "utils/logging.h"
 
 #include <algorithm>
 #include <math.h>
