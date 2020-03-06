@@ -3,8 +3,6 @@
 #define FAST_BLEUALIGN_COMMON_H
 
 
-#include "util/string_piece.hh"
-
 #include <iostream>
 #include <cstdio>
 #include <unordered_map>
@@ -12,9 +10,10 @@
 #include <map>
 #include <set>
 
+#include <boost/archive/iterators/binary_from_base64.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
 
 namespace utils {
-
 
     struct match {
 
@@ -57,31 +56,25 @@ namespace utils {
     typedef std::vector<match> matches_vec;
 
 
-    struct Config {
-        std::string text1_path;
-        std::string text2_path;
-        std::string text1_translated_path;
-        std::string output_dir;
-        std::string matches_path;
-        float doc_threshold;
-        float bleu_threshold;
+    struct DocumentPair {
+        std::string url1;
+        std::string url2;
+        std::vector<std::string> text1;
+        std::vector<std::string> text2;
+        std::vector<std::string> text1translated;
     };
 
-    struct AlignData {
-        matches_list matches;
-        umap_extracted umap_text1;
-        umap_extracted umap_text2;
-        umap_extracted umap_text1translated;
-    };
+    typedef boost::archive::iterators::transform_width<
+        boost::archive::iterators::binary_from_base64<
+            std::string::const_iterator
+        >,
+        8,
+        6
+    >
+    binary_text;
 
-    std::string PieceToString(StringPiece sp);
-
-    void SplitStringPiece(std::vector<StringPiece> &vec, StringPiece sp, char c, size_t pos = 0, size_t max_split = -1);
-
-    void SplitStringPiece(std::vector<StringPiece> &vec, StringPiece sp, int (*check_func)(int), size_t pos = 0,
-                          size_t max_split = -1);
-
-
+    void SplitString(std::vector<std::string> &vec, const std::string &str, char delimiter);
+    void DecodeAndSplit(std::vector<std::string> &vec, const std::string &str, char delimiter);
 } // namespace utils
 
 

@@ -54,7 +54,6 @@ namespace ngram {
         token_iterators[i] = tokens.begin();
         std::advance(token_iterators[i], i);
       }
-
       // base
       for (unsigned short i = 0; i < ngram_size - 1; ++i) {
         increment_helper(token_iterators, i + 1);
