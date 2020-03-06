@@ -17,7 +17,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -pthread -g ")
 
 
 # Boost
-find_package(Boost REQUIRED COMPONENTS filesystem program_options system iostreams regex serialization)
+find_package(Boost REQUIRED COMPONENTS program_options regex serialization)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
