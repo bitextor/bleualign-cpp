@@ -7,7 +7,7 @@
 #include <memory>
 #include <numeric>
 #include <iterator>
-
+#include <algorithm> 
 
 namespace {
   typedef std::vector<std::string>::const_iterator token_iterator;
