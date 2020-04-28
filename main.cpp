@@ -23,6 +23,7 @@ void Process(float bleu_threshold) {
     utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n');
     align::AlignDocument(doc_pair, bleu_threshold);
     matches.clear();
+    std::cout << std::flush;
   }
 }
 
