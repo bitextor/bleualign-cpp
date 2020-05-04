@@ -12,6 +12,30 @@
 #include <memory>
 #include <iomanip>
 
+namespace {
+  template <typename T, class Operation> T accumulate_intersection(
+    ngram::ngram_vector::const_iterator lbegin,
+    ngram::ngram_vector::const_iterator lend,
+    ngram::ngram_vector::const_iterator rbegin,
+    ngram::ngram_vector::const_iterator rend, 
+    T first_value,
+    Operation op) {
+    while (lbegin != lend && rbegin != rend) {
+      if (lbegin->first < rbegin->first)
+        ++lbegin;
+      else if (lbegin->first > rbegin->first)
+        ++rbegin;
+      else {
+        assert(lbegin->first == rbegin->first);
+        first_value = op(first_value, lbegin->second, rbegin->second);
+        ++lbegin;
+        ++rbegin;
+      }
+    }
+    return first_value;
+  }
+}
+
 namespace align {
 
     void AlignDocument(const utils::DocumentPair& doc_pair, double threshold) {
@@ -43,7 +67,7 @@ namespace align {
       // count ngrams for each sentence of the source corpus
       for (const std::string &src_sentence : text2_doc) {
         scorer::normalize(text_normalized, src_sentence, "western");
-        ngram::NGramCounter counter (ngram_size);
+        ngram::NGramCounter counter(ngram_size);
         counter.process(text_normalized);
         src_corpus_ngrams.push_back(counter);
       }
@@ -58,27 +82,22 @@ namespace align {
         trg_counts.process(text_normalized);
 
         utils::scoremap smap;
-        std::vector<int> correct;
-        int src_ngram_freq, trg_ngram_freq;
 
         size_t src_corpus_i = 0;
         for (const ngram::NGramCounter &src_counts : src_corpus_ngrams) {
+          std::vector<int> correct(ngram_size, 0);
           float logbleu = 0.0;
-          correct.assign(ngram_size, 0);
 
-          ngram::ngram_map::const_iterator map_it;
           // compute sum of precision scores for ngrams of order 1 to <ngram_size>
           for (unsigned short order = 1; order <= ngram_size; ++order) {
-            map_it = trg_counts.cbegin(order);
-            while (map_it != trg_counts.cend(order)) {
-              src_ngram_freq = src_counts.get(map_it->first, order);
-              if (src_ngram_freq > 0) {
-                trg_ngram_freq = trg_counts.get(map_it->first, order);
-                correct.at(order-1) += std::min(src_ngram_freq, trg_ngram_freq);
-              }
-              ++map_it;
-            }
-            logbleu += log(correct.at(order-1)) - log(std::max<int>(trg_counts.processed() - order + 1, 0));
+            correct[order - 1] = ::accumulate_intersection(
+              src_counts.cbegin(order), src_counts.cend(order),
+              trg_counts.cbegin(order), trg_counts.cend(order),
+              0,
+              [](size_t acc, size_t src_ngram_freq, size_t trg_ngram_freq) {
+                return acc + std::min(src_ngram_freq, trg_ngram_freq);
+              });
+            logbleu += log(correct[order - 1]) - log(std::max<int>(trg_counts.processed() - order + 1, 0));
           }
 
           // apply uniform weights (wn = 1/N)

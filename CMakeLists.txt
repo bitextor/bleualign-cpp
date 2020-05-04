@@ -65,6 +65,7 @@ if (BUILD_TEST)
         LOG_DOWNLOAD ON
         LOG_CONFIGURE ON
         LOG_BUILD ON
+        CMAKE_ARGS -DCMAKE_CXX_FLAGS=-std=c++11
     )
 
     # Include
