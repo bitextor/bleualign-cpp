@@ -23,10 +23,10 @@ namespace search {
       cols = c + 1;
 
       // initialise
-      scores = boost::make_unique<float[]>(rows * cols);
+      scores = boost::make_unique<float[]>(2 * cols);
       back_pointers = boost::make_unique<char[]>(rows * cols);
 
-      std::fill(scores.get(), scores.get() + rows * cols, 0);
+      std::fill(scores.get(), scores.get() + 2 * cols, 0);
       std::fill(back_pointers.get(), back_pointers.get() + rows * cols, '.');
     }
 
@@ -60,7 +60,7 @@ namespace search {
       float score, best_score;
       char pointer;
 
-      for (size_t r = 0; r < smap_list.size(); ++r) {
+      for (size_t r = 0; r < rows - 1; ++r) {
         for (size_t c = 0; c < cols - 1; ++c) {
           best_score = get_score(r, c + 1);
           pointer = '^';
@@ -90,14 +90,6 @@ namespace search {
 
     void Dynamic::show() {
       std::cout << rows << "x" << cols << "\n";
-      for (size_t r = 0; r < rows; ++r) {
-        for (size_t c = 0; c < cols; ++c) {
-          std::cout << *(get_score(r, c)) << "\t";
-        }
-        std::cout << "\n";
-      }
-      std::cout << "\n------" << std::endl;
-
       for (size_t r = 0; r < rows; ++r) {
         for (size_t c = 0; c < cols; ++c) {
           std::cout << get_backpointer(r, c) << "\t";
