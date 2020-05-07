@@ -23,14 +23,14 @@ namespace search {
       cols = c + 1;
 
       // initialise
-      scores = boost::make_unique<double[]>(rows * cols);
+      scores = boost::make_unique<float[]>(rows * cols);
       back_pointers = boost::make_unique<char[]>(rows * cols);
 
       std::fill(scores.get(), scores.get() + rows * cols, 0);
       std::fill(back_pointers.get(), back_pointers.get() + rows * cols, '.');
     }
 
-    double *Dynamic::get_score(size_t r, size_t c) {
+    float *Dynamic::get_score(size_t r, size_t c) {
       if ((r > rows - 1) || (c > cols - 1))
         throw std::runtime_error("invalid cost scores access");
 
@@ -57,7 +57,7 @@ namespace search {
         }
       }
 
-      double score, best_score;
+      float score, best_score;
       char pointer;
 
       for (size_t r = 0; r < smap_list.size(); ++r) {
@@ -71,7 +71,7 @@ namespace search {
             pointer = '<';
           }
 
-          boost::unordered_map<utils::sizet_pair, double>::const_iterator got = alignments.find({r, c});
+          boost::unordered_map<utils::sizet_pair, float>::const_iterator got = alignments.find({r, c});
           if (got != alignments.end()) {
             score = got->second + *get_score(r, c);
 
@@ -121,8 +121,8 @@ namespace search {
           j -= 1;
         } else if (pointer == 'm') {
 
-          double score;
-          boost::unordered_map<utils::sizet_pair, double>::const_iterator got = alignments.find({i, j});
+          float score;
+          boost::unordered_map<utils::sizet_pair, float>::const_iterator got = alignments.find({i, j});
           if (got != alignments.end())
             score = got->second;
           else
@@ -511,14 +511,14 @@ namespace search {
     }
 
     void FindMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist,
-                     size_t translated_size, size_t english_size, double threshold) {
+                     size_t translated_size, size_t english_size, float threshold) {
       Dynamic finder(translated_size, english_size);
       finder.process(scorelist);
       finder.extract_matches(matches);
       FilterMatches(matches, scorelist, threshold);
     }
 
-    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, double threshold) {
+    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, float threshold) {
       for (auto m: matches) {
         if (!m.first.same() || !m.second.same())
           throw "Inconsistent data: Only 1:1 alignments can be filtered!";
