@@ -27,12 +27,12 @@ namespace ngram {
 
         size_t get(size_t key, unsigned short ngram) const;
 
-        ngram_vector::const_iterator cbegin(unsigned short ngram) const{
-          return data_.at(ngram - 1).cbegin();
+        ngram_vector::const_iterator cbegin(unsigned short ngram) const {
+          return data_[ngram - 1].cbegin();
         }
 
         ngram_vector::const_iterator cend(unsigned short ngram) const {
-          return data_.at(ngram - 1).cend();
+          return data_[ngram - 1].cend();
         }
 
         void process(std::vector<std::string> const &tokens);

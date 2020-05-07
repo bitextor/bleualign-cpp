@@ -111,7 +111,7 @@ namespace align {
             // calculate bleu score in reverse direction
             logbleu = 0.0;
             for (size_t order = 1; order <= ngram_size; ++order) {
-              logbleu += log(correct.at(order-1)) - log(std::max<int>(src_counts.processed() - order + 1, 0));
+              logbleu += log(correct[order-1]) - log(std::max<int>(src_counts.processed() - order + 1, 0));
             }
             logbleu /= ngram_size;
             logbleu += std::min<float>(0, 1 - static_cast<float>(trg_counts.processed()) / static_cast<float>(src_counts.processed()));
@@ -185,24 +185,24 @@ namespace align {
           size_t max_pos_translate;
           size_t max_pos_text2;
           for (size_t i = 0; i < scorelist.size(); ++i) {
-            if (scorelist.at(i).size() == 0) {
+            if (scorelist[i].size() == 0) {
               continue;
             }
 
-            if (scorelist.at(i).rbegin()->first > max_val && scorelist.at(i).rbegin()->first > threshold) {
-              max_val = scorelist.at(i).rbegin()->first;
+            if (scorelist[i].rbegin()->first > max_val && scorelist[i].rbegin()->first > threshold) {
+              max_val = scorelist[i].rbegin()->first;
               max_pos_translate = i;
-              max_pos_text2 = scorelist.at(i).rbegin()->second.first;
+              max_pos_text2 = scorelist[i].rbegin()->second.first;
             }
           }
 
           // update match
           if (max_val != -1) {
             m = utils::match(
-                    merged_pos_translated.at(max_pos_translate).first,
-                    merged_pos_translated.at(max_pos_translate).second,
-                    merged_pos_text2.at(max_pos_text2).first,
-                    merged_pos_text2.at(max_pos_text2).second, max_val);
+                    merged_pos_translated[max_pos_translate].first,
+                    merged_pos_translated[max_pos_translate].second,
+                    merged_pos_text2[max_pos_text2].first,
+                    merged_pos_text2[max_pos_text2].second, max_val);
           }
 
 
