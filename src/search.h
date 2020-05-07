@@ -36,9 +36,9 @@ namespace search {
 
         ~Dynamic() {};
 
-        float *get_score(size_t r, size_t c);
+        float &get_score(size_t r, size_t c);
 
-        char *get_backpointer(size_t r, size_t c);
+        char &get_backpointer(size_t r, size_t c);
 
         void process(std::vector<utils::scoremap> &smap_list) override;
 
