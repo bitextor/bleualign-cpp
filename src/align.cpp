@@ -64,6 +64,9 @@ namespace align {
       std::vector<ngram::NGramCounter> src_corpus_ngrams;
       std::vector<std::string> text_normalized;
 
+      // Note: score vector moved here from critical section to prevent constant re-allocation
+      std::vector<int> correct(ngram_size, 0);
+
       // count ngrams for each sentence of the source corpus
       for (const std::string &src_sentence : text2_doc) {
         scorer::normalize(text_normalized, src_sentence, "western");
@@ -83,9 +86,9 @@ namespace align {
 
         utils::scoremap smap;
 
+        // Loop over every source sentence's ngram counts
         size_t src_corpus_i = 0;
         for (const ngram::NGramCounter &src_counts : src_corpus_ngrams) {
-          std::vector<int> correct(ngram_size, 0);
           float logbleu = 0.0;
 
           // compute sum of precision scores for ngrams of order 1 to <ngram_size>
