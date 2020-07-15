@@ -26,7 +26,6 @@ namespace {
       else if (lbegin->first > rbegin->first)
         ++rbegin;
       else {
-        assert(lbegin->first == rbegin->first);
         first_value = op(first_value, lbegin->second, rbegin->second);
         ++lbegin;
         ++rbegin;
