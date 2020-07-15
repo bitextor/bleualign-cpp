@@ -62,6 +62,7 @@ namespace utils {
         std::vector<std::string> text1;
         std::vector<std::string> text2;
         std::vector<std::string> text1translated;
+        std::vector<std::string> text2translated;
     };
 
     typedef boost::archive::iterators::transform_width<

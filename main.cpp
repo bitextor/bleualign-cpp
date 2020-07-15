@@ -6,26 +6,51 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
+#include <stdexcept>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
 
 void Process(std::istream &in, float bleu_threshold) {
   utils::DocumentPair doc_pair;
-  utils::matches_vec matches;
   std::string line;
   std::vector<std::string> split_line;
+
+  size_t n = 0;
+
   while(getline(in, line)) {
-    split_line.clear();
+    ++n;
+
     utils::SplitString(split_line, line, '\t');
+
+    if (split_line.size() < 5)
+      throw std::runtime_error((std::stringstream() << "Not enough fields on line " << n).str());
+
     doc_pair.url1 = split_line[0];
     doc_pair.url2 = split_line[1];
     utils::DecodeAndSplit(doc_pair.text1, split_line[2], '\n');
     utils::DecodeAndSplit(doc_pair.text2, split_line[3], '\n');
     utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n');
+
+    if (doc_pair.text1.size() != doc_pair.text1translated.size())
+      throw std::runtime_error((std::stringstream() 
+        << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
+        << doc_pair.text1.size() << " vs " << doc_pair.text1translated.size() << ")").str());
+
+    if (split_line.size() == 5)
+      doc_pair.text2translated = doc_pair.text2;
+    else {
+      utils::DecodeAndSplit(doc_pair.text2translated, split_line[5], '\n');
+
+      if (doc_pair.text2.size() != doc_pair.text2translated.size())
+        throw std::runtime_error((std::stringstream() 
+          << "On line " << n << " column 4 and 6 don't have an equal number of lines ("
+          << doc_pair.text2.size() << " vs " << doc_pair.text2translated.size() << ")").str());
+    }
+
     align::AlignDocument(doc_pair, bleu_threshold);
-    matches.clear();
     std::cout << std::flush;
   }
 }
@@ -49,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   if (vm.count("help")) {
     std::cerr << "Reads matched documents from input-files or stdin of none specified, outputs aligned sentences to stdout\n" <<
-	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64\n" <<
+	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64 [ ,text2translated_base64 ]\n" <<
 	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score\n\n" <<
       "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [<input-file>...]\n\n" <<
 	    desc << std::endl;
