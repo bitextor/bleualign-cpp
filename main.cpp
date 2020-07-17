@@ -1,5 +1,4 @@
 
-#include "main.h"
 #include "src/align.h"
 #include "src/utils/common.h"
 
