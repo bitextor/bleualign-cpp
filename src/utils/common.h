@@ -52,6 +52,9 @@ namespace utils {
     typedef std::vector<sizet_pair> vec_pair;
     typedef std::unordered_map<std::string, std::vector<std::string>> umap_extracted;
     typedef std::vector<std::pair<std::string, std::string>> matches_list;
+
+    // Scoremap stores a list of alignments scores for 1 vs N sentences. Key is
+    // the score, values are the 
     typedef std::multimap<float, std::pair<size_t, std::vector<int>>> scoremap;
     typedef std::vector<match> matches_vec;
 
@@ -74,8 +77,8 @@ namespace utils {
     >
     binary_text;
 
-    void SplitString(std::vector<std::string> &vec, const std::string &str, char delimiter);
-    void DecodeAndSplit(std::vector<std::string> &vec, const std::string &str, char delimiter);
+    void SplitString(std::vector<std::string> &vec, const std::string &str, char delimiter, bool trim = false);
+    void DecodeAndSplit(std::vector<std::string> &vec, const std::string &str, char delimiter, bool trim = false);
 } // namespace utils
 
 
