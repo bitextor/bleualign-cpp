@@ -25,8 +25,11 @@ void Process(std::istream &in, float bleu_threshold) {
     utils::SplitString(split_line, line, '\t');
 
     // Expect at least 5 (maybe 6) columns
-    if (split_line.size() < 5)
-      throw std::runtime_error(((std::stringstream) (std::stringstream() << "Not enough fields on line " << n)).str());
+    if (split_line.size() < 5) {
+      std::stringstream error;
+      error << "Not enough fields on line " << n;
+      throw std::runtime_error(error.str());
+    }
 
     doc_pair.url1 = split_line[0];
     doc_pair.url2 = split_line[1];
@@ -35,11 +38,12 @@ void Process(std::istream &in, float bleu_threshold) {
 
     // Processed version of text 1 (i.e. translated to match language text 2)
     utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n', true);
-    if (doc_pair.text1.size() != doc_pair.text1translated.size())
-      throw std::runtime_error(((std::stringstream) (std::stringstream() 
-        << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
-        << doc_pair.text1.size() << " vs " << doc_pair.text1translated.size()
-        << ")")).str());
+    if (doc_pair.text1.size() != doc_pair.text1translated.size()) {
+      std::stringstream error;
+      error << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
+            << doc_pair.text1.size() << " vs " << doc_pair.text1translated.size() << ")";
+      throw std::runtime_error(error.str());
+    }
     
     // Optionally sixth column with processed version of text 2 (i.e. to better
     // match with the processed version of text 1)
@@ -48,11 +52,12 @@ void Process(std::istream &in, float bleu_threshold) {
     } else {
       utils::DecodeAndSplit(doc_pair.text2translated, split_line[5], '\n', true);
 
-      if (doc_pair.text2.size() != doc_pair.text2translated.size())
-        throw std::runtime_error(((std::stringstream) (std::stringstream() 
-          << "On line " << n << " column 4 and 6 don't have an equal number of lines ("
-          << doc_pair.text2.size() << " vs " << doc_pair.text2translated.size()
-          << ")")).str());
+      if (doc_pair.text2.size() != doc_pair.text2translated.size()) {
+        std::stringstream error; 
+        error << "On line " << n << " column 4 and 6 don't have an equal number of lines ("
+              << doc_pair.text2.size() << " vs " << doc_pair.text2translated.size() << ")";
+        throw std::runtime_error(error.str());
+      }
     }
 
     align::AlignDocument(doc_pair, bleu_threshold);
