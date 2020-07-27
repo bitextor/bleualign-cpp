@@ -50,10 +50,9 @@ namespace search {
       }
 
       for (size_t s = 0; s < smap_list.size(); ++s) {
-        utils::scoremap::reverse_iterator it = smap_list.at(s).rbegin();
-        while (it != smap_list.at(s).rend()) {
+        // iterate in reverse order so the entry with the lowest 
+        for (utils::scoremap::reverse_iterator it = smap_list[s].rbegin(), end = smap_list[s].rend(); it != end; ++it) {
           alignments.insert({{s, it->second.first}, it->first});
-          ++it;
         }
       }
 
@@ -516,8 +515,8 @@ namespace search {
           throw "Inconsistent data: Only 1:1 alignments can be filtered!";
       }
 
-      utils::matches_vec matches_cpy(matches);
-      matches.clear();
+      utils::matches_vec matches_cpy;
+      std::swap(matches, matches_cpy);
 
       utils::scoremap::reverse_iterator it;
       for (auto m: matches_cpy) {
