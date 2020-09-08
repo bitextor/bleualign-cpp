@@ -26,7 +26,6 @@ namespace {
       else if (lbegin->first > rbegin->first)
         ++rbegin;
       else {
-        assert(lbegin->first == rbegin->first);
         first_value = op(first_value, lbegin->second, rbegin->second);
         ++lbegin;
         ++rbegin;
@@ -42,24 +41,24 @@ namespace align {
 
       utils::matches_vec matches;
 
-      Align(matches, doc_pair.text1translated, doc_pair.text2, threshold);
+      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold);
       WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2);
 
     }
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
-               const std::vector<std::string> &text2_doc, double threshold) {
+               const std::vector<std::string> &text2translated_doc, double threshold) {
 
       std::vector<utils::scoremap> scorelist;
-      EvalSents(scorelist, text1translated_doc, text2_doc, 2, 3);
-      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2_doc.size(), threshold);
-      GapFiller(matches, text1translated_doc, text2_doc, 3, threshold);
+      EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
+      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), threshold);
+      GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
 
     }
 
     /* given list of test sentences and list of reference sentences, calculate bleu scores */
     void EvalSents(std::vector<utils::scoremap> &scorelist, const std::vector<std::string> &text1translated_doc,
-                   const std::vector<std::string> &text2_doc, unsigned short ngram_size, size_t maxalternatives) {
+                   const std::vector<std::string> &text2translated_doc, unsigned short ngram_size, size_t maxalternatives) {
 
       std::vector<ngram::NGramCounter> src_corpus_ngrams;
       std::vector<std::string> text_normalized;
@@ -68,7 +67,7 @@ namespace align {
       std::vector<int> correct(ngram_size, 0);
 
       // count ngrams for each sentence of the source corpus
-      for (const std::string &src_sentence : text2_doc) {
+      for (const std::string &src_sentence : text2translated_doc) {
         scorer::normalize(text_normalized, src_sentence, "western");
         ngram::NGramCounter counter(ngram_size);
         counter.process(text_normalized);
@@ -138,7 +137,7 @@ namespace align {
     }
 
     void GapFiller(utils::matches_vec &matched, const std::vector<std::string> &text1translated_doc,
-                   const std::vector<std::string> &text2_doc, size_t gap_limit, double threshold) {
+                   const std::vector<std::string> &text2translated_doc, size_t gap_limit, double threshold) {
 
       // check that matches vector contains only 1:1 matches
       for (auto m: matched) {
@@ -147,9 +146,9 @@ namespace align {
       }
 
       std::unique_ptr<int[]> matches_arr_translated = boost::make_unique<int[]>(text1translated_doc.size());
-      std::unique_ptr<int[]> matches_arr_text2 = boost::make_unique<int[]>(text2_doc.size());
+      std::unique_ptr<int[]> matches_arr_text2 = boost::make_unique<int[]>(text2translated_doc.size());
       std::fill(matches_arr_translated.get(), matches_arr_translated.get() + text1translated_doc.size(), -1);
-      std::fill(matches_arr_text2.get(), matches_arr_text2.get() + text2_doc.size(), -1);
+      std::fill(matches_arr_text2.get(), matches_arr_text2.get() + text2translated_doc.size(), -1);
 
 
       for (auto m: matched) {
@@ -168,13 +167,13 @@ namespace align {
           if (post == 0) { // pre
             PreGapMergedSentences(merged_text_translated, merged_pos_translated, text1translated_doc,
                                   matches_arr_translated, m.first.from, gap_limit);
-            PreGapMergedSentences(merged_text_text2, merged_pos_text2, text2_doc,
+            PreGapMergedSentences(merged_text_text2, merged_pos_text2, text2translated_doc,
                                   matches_arr_text2, m.second.from, gap_limit);
           } else if (post == 1) { // post
             PostGapMergedSentences(merged_text_translated, merged_pos_translated, text1translated_doc,
                                    matches_arr_translated, text1translated_doc.size(), m.first.from, gap_limit);
-            PostGapMergedSentences(merged_text_text2, merged_pos_text2, text2_doc,
-                                   matches_arr_text2, text2_doc.size(), m.second.from, gap_limit);
+            PostGapMergedSentences(merged_text_text2, merged_pos_text2, text2translated_doc,
+                                   matches_arr_text2, text2translated_doc.size(), m.second.from, gap_limit);
           }
 
           if (merged_text_translated.size() == 1 && merged_text_text2.size() == 1)

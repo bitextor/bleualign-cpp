@@ -26,7 +26,9 @@ tests/test_all
 
 Bleualign-cpp takes two texts in two different languages and aligns them to produce parallel sentences. To this end, it also needs a translation of one of these texts.
 
-Input format is `url1 <tab> url2 <tab> text1 <tab> text2 <tab> text1translated` per line. Every text column is encoded as base64. After decoding text columns, they should contain a single sentence per line. The translation (`text1translated`) should correspond line-by-line with the original text (`text1`).
+Input format is `url1 <tab> url2 <tab> text1 <tab> text2 <tab> text1translated [ <tab> text2processed ]` per line. Every text column is encoded as base64. After decoding text columns, they should contain a single sentence per line. The translation (`text1translated`) should correspond line-by-line with the original text (`text1`).
+
+Optionally a processed version of `text2` can be provided, as a sixth column, that better matches the processing applied to `text1translated` to help with calculating alignment scores. The output of bleualign will only mention `text1` and `text2`.
 
 Bleualign-cpp outputs aligned sentences to standard output. Output format is: `url1 <tab> url2 <tab> source_sentence <tab> target_sentence <tab> score` per line.
 

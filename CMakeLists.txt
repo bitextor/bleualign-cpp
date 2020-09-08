@@ -39,7 +39,7 @@ file(GLOB bleualign_cpp_headers ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h ${CMAKE_CURR
 file(GLOB bleualign_cpp_cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
 # make bleualign_cpp_lib library
-add_library(bleualign_cpp_lib SHARED ${bleualign_cpp_headers} ${bleualign_cpp_cpp})
+add_library(bleualign_cpp_lib STATIC ${bleualign_cpp_headers} ${bleualign_cpp_cpp})
 target_link_libraries(bleualign_cpp_lib ${Boost_LIBRARIES} preprocess_util)
 
 # bleualign_cpp
