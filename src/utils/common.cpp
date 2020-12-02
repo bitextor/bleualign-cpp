@@ -4,7 +4,6 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/functional.hpp>
 #include <boost/algorithm/string.hpp>
 
 namespace utils {

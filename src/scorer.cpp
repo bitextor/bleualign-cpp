@@ -1,7 +1,6 @@
 
 #include "scorer.h"
 #include "ngram.h"
-#include "utils/common.h"
 
 #include <iostream>
 #include <boost/regex.hpp>

@@ -1,13 +1,8 @@
 
 #include "gtest/gtest.h"
 #include "../src/search.h"
-#include "../src/align.h"
 
-#include <iostream>
-#include <string>
 #include <vector>
-#include <set>
-
 
 using namespace search;
 

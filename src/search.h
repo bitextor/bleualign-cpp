@@ -34,7 +34,7 @@ namespace search {
 
         Dynamic(size_t rows, size_t cols);
 
-        ~Dynamic() {};
+        ~Dynamic() = default;;
 
         float &get_score(size_t r, size_t c);
 
@@ -65,7 +65,7 @@ namespace search {
 
         Munkres(size_t rows, size_t cols, bool min_cost = true);
 
-        ~Munkres() {};
+        ~Munkres() = default;;
 
         void process(std::vector<utils::scoremap> &smap_list);
 

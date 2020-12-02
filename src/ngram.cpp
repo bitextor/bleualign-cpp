@@ -3,10 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <iterator>
-#include <memory>
 #include <numeric>
-#include <iterator>
 #include <algorithm> 
 
 namespace {

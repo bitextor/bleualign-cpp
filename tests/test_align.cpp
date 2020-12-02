@@ -1,9 +1,7 @@
 
 #include "gtest/gtest.h"
 #include "../src/align.h"
-#include "../src/utils/common.h"
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include <boost/make_unique.hpp>
