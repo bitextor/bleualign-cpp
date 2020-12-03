@@ -319,14 +319,14 @@ namespace align {
         if (print_sent_hash){
             std::cout << "\t";
             for (size_t i = m.first.from; i < m.first.to; ++i) {
-                std::cout << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
+                std::cout << std::hex << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
             }
-            std::cout << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
+            std::cout << std::hex << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
 
             for (size_t i = m.second.from; i < m.second.to; ++i) {
-                std::cout << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
+                std::cout << std::hex << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
             }
-            std::cout << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
+            std::cout << std::hex << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
         }
 
         std::cout << "\n";

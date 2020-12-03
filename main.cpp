@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
   desc.add_options()
           ("help", "produce help message")
           ("bleu-threshold", po::value(&bleu_threshold), "BLEU threshold for matched sentences")
-          ("print-sent-hash", po::value(&print_sent_hash), "print Murmurhash hashes of the output sentences")
+          ("print-sent-hash", po::bool_switch(&print_sent_hash)->default_value(false), "print Murmurhash hashes of the output sentences")
           ("input-file", po::value(&filenames));
 
   po::positional_options_description positional;
