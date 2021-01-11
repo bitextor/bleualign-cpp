@@ -4,6 +4,7 @@
 #include "ngram.h"
 #include "search.h"
 #include "utils/common.h"
+#include "util/murmur_hash.hh"
 
 #include <cmath>
 #include <boost/make_unique.hpp>
@@ -36,12 +37,12 @@ namespace {
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold) {
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash) {
 
       utils::matches_vec matches;
 
       Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold);
-      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2);
+      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash);
 
     }
 
@@ -297,9 +298,12 @@ namespace align {
                                 const std::vector<std::string> &text1_doc,
                                 const std::vector<std::string> &text2_doc,
                                 const std::string& url1,
-                                const std::string& url2) {
+                                const std::string& url2,
+                                const bool print_sent_hash) {
+
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
+
         for (size_t i = m.first.from; i < m.first.to; ++i) {
           std::cout << text1_doc[i] << ' ';
         }
@@ -309,7 +313,23 @@ namespace align {
           std::cout << text2_doc[i] << ' ';
         }
         std::cout << text2_doc[m.second.to] << "\t";
-        std::cout << std::fixed << std::setprecision(6) << m.score << "\n";
+
+        std::cout << std::fixed << std::setprecision(6) << m.score;
+
+        if (print_sent_hash){
+            std::cout << "\t";
+            for (size_t i = m.first.from; i < m.first.to; ++i) {
+                std::cout << std::hex << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
+            }
+            std::cout << std::hex << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
+
+            for (size_t i = m.second.from; i < m.second.to; ++i) {
+                std::cout << std::hex << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
+            }
+            std::cout << std::hex << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
+        }
+
+        std::cout << "\n";
       }
     }
 

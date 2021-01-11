@@ -12,7 +12,7 @@
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold);
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash);
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
                const std::vector<std::string> &text2_doc, double threshold);
@@ -37,7 +37,7 @@ namespace align {
 
     void FillMatches(std::unique_ptr<int[]> &arr1, std::unique_ptr<int[]> &arr2, utils::match m);
 
-    void WriteAlignedTextToStdout(const utils::matches_vec &matches, const std::vector<std::string> &text1_doc, const std::vector<std::string> &text2_doc, const std::string& url1, const std::string& url2);
+    void WriteAlignedTextToStdout(const utils::matches_vec &matches, const std::vector<std::string> &text1_doc, const std::vector<std::string> &text2_doc, const std::string& url1, const std::string& url2, const bool print_sent_hash);
 
 
 } // namespace align

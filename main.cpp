@@ -11,7 +11,7 @@
 
 namespace po = boost::program_options;
 
-void Process(std::istream &in, float bleu_threshold) {
+void Process(std::istream &in, float bleu_threshold, bool print_sent_hash) {
   utils::DocumentPair doc_pair;
   std::string line;
   std::vector<std::string> split_line;
@@ -59,19 +59,21 @@ void Process(std::istream &in, float bleu_threshold) {
       }
     }
 
-    align::AlignDocument(doc_pair, bleu_threshold);
+    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash);
     std::cout << std::flush;
   }
 }
 
 int main(int argc, char *argv[]) {
   float bleu_threshold = 0.0f;
+  bool print_sent_hash = false;
   std::vector<std::string> filenames;  
 
   po::options_description desc("Allowed options");
   desc.add_options()
           ("help", "produce help message")
           ("bleu-threshold", po::value(&bleu_threshold), "BLEU threshold for matched sentences")
+          ("print-sent-hash", po::bool_switch(&print_sent_hash)->default_value(false), "print Murmurhash hashes of the output sentences")
           ("input-file", po::value(&filenames));
 
   po::positional_options_description positional;
@@ -84,18 +86,18 @@ int main(int argc, char *argv[]) {
   if (vm.count("help")) {
     std::cerr << "Reads matched documents from input-files or stdin of none specified, outputs aligned sentences to stdout\n" <<
 	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64 [ ,text2translated_base64 ]\n" <<
-	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score\n\n" <<
-      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [<input-file>...]\n\n" <<
+	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score [ , murmurhash_text1, murmurhash_text2 ]\n\n" <<
+      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [<input-file>...]\n\n" <<
 	    desc << std::endl;
     return 1;
   }
 
   if (filenames.empty())
-    Process(std::cin, bleu_threshold);
+    Process(std::cin, bleu_threshold, print_sent_hash);
   else
     for (std::string const &filename : filenames) {
       std::ifstream fin(filename);
-      Process(fin, bleu_threshold);
+      Process(fin, bleu_threshold, print_sent_hash);
     }
 
   return 0;
