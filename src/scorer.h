@@ -14,7 +14,7 @@ namespace scorer {
     typedef std::pair<std::regex, std::string> rule_pair;
 
     const static boost::regex tokenize_regex(
-            "([\\{-\\~\\[-\\` -\\&\\(-\\+\\:-\\@\\/])|(?:(?<![0-9])([\\.,]))|(?:([\\.,])(?![0-9]))|(?:(?<=[0-9])(-))");
+            R"(([\{-\~\[-\` -\&\(-\+\:-\@\/])|(?:(?<![0-9])([\.,]))|(?:([\.,])(?![0-9]))|(?:(?<=[0-9])(-)))");
 
     const static rule_pair normalize1_rules[] = {
             std::make_pair(std::regex("<skipped>"), ""),  // strip "skipped" tags

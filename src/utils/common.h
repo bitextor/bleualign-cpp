@@ -24,7 +24,7 @@ namespace utils {
 
             inner(size_t a, size_t b) : from(a), to(b) {};
 
-            bool same() { return from == to; };
+            bool same() const { return from == to; };
 
         };
 
@@ -36,7 +36,7 @@ namespace utils {
 
         match(size_t a, size_t b, size_t c, size_t d, double s) : first(a, b), second(c, d) {score=s;};
 
-        void print() {
+        void print() const {
           printf("(%zu, %zu) -> (%zu, %zu): %f\n", first.from, first.to, second.from, second.to, score);
         }
 
@@ -50,8 +50,6 @@ namespace utils {
 
     typedef std::pair<size_t, size_t> sizet_pair;
     typedef std::vector<sizet_pair> vec_pair;
-    typedef std::unordered_map<std::string, std::vector<std::string>> umap_extracted;
-    typedef std::vector<std::pair<std::string, std::string>> matches_list;
 
     // Scoremap stores a list of alignments scores for 1 vs N sentences. Key is
     // the score, values are the 

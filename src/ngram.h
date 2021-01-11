@@ -21,9 +21,9 @@ namespace ngram {
 
     public:
 
-        NGramCounter(unsigned short n);
+        explicit NGramCounter(unsigned short n);
 
-        ~NGramCounter() {};
+        ~NGramCounter() = default;;
 
         size_t get(size_t key, unsigned short ngram) const;
 

@@ -5,8 +5,7 @@
 #include "search.h"
 #include "utils/common.h"
 
-#include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <boost/make_unique.hpp>
 #include <vector>
 #include <memory>
@@ -51,7 +50,7 @@ namespace align {
 
       std::vector<utils::scoremap> scorelist;
       EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
-      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), threshold);
+      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
       GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
 
     }
@@ -99,25 +98,25 @@ namespace align {
               [](size_t acc, size_t src_ngram_freq, size_t trg_ngram_freq) {
                 return acc + std::min(src_ngram_freq, trg_ngram_freq);
               });
-            logbleu += log(correct[order - 1]) - log(std::max<int>(trg_counts.processed() - order + 1, 0));
+            logbleu += float(log(correct[order - 1]) - log(std::max<int>(trg_counts.processed() - order + 1, 0)));
           }
 
           // apply uniform weights (wn = 1/N)
-          logbleu /= ngram_size;
+          logbleu /= float(ngram_size);
           // brevity penalty
           logbleu += std::min<float>(0, 1 - static_cast<float>(src_counts.processed()) / static_cast<float>(trg_counts.processed()));
 
-          float src2trg_score = exp(logbleu);
+          float src2trg_score = std::exp(logbleu);
 
           if (src2trg_score > 0) {
             // calculate bleu score in reverse direction
             logbleu = 0.0;
             for (size_t order = 1; order <= ngram_size; ++order) {
-              logbleu += log(correct[order-1]) - log(std::max<int>(src_counts.processed() - order + 1, 0));
+              logbleu += float(log(correct[order-1]) - log(std::max<int>(src_counts.processed() - order + 1, 0)));
             }
-            logbleu /= ngram_size;
+            logbleu /= float(ngram_size);
             logbleu += std::min<float>(0, 1 - static_cast<float>(trg_counts.processed()) / static_cast<float>(src_counts.processed()));
-            float trg2src_score = exp(logbleu);
+            float trg2src_score = std::exp(logbleu);
             float meanscore = (2 * src2trg_score * trg2src_score) / (src2trg_score + trg2src_score);
             smap.insert(utils::scoremap::value_type(meanscore, std::make_pair(src_corpus_i, correct)));
           }
@@ -126,7 +125,7 @@ namespace align {
 
         // keep top N items
         if (smap.size() > maxalternatives) {
-          utils::scoremap::iterator rem_it = smap.end();
+          auto rem_it = smap.end();
           std::advance(rem_it, -(maxalternatives));
           smap.erase(smap.begin(), rem_it);
         }
@@ -142,7 +141,7 @@ namespace align {
       // check that matches vector contains only 1:1 matches
       for (auto m: matched) {
         if (!m.first.same() || !m.second.same())
-          throw "Inconsistent data in matches!";
+          throw std::runtime_error("Inconsistent data in matches!");
       }
 
       std::unique_ptr<int[]> matches_arr_translated = boost::make_unique<int[]>(text1translated_doc.size());
@@ -187,7 +186,7 @@ namespace align {
           size_t max_pos_translate;
           size_t max_pos_text2;
           for (size_t i = 0; i < scorelist.size(); ++i) {
-            if (scorelist[i].size() == 0) {
+            if (scorelist[i].empty()) {
               continue;
             }
 
@@ -220,7 +219,7 @@ namespace align {
                                const std::vector<std::string> &docs, std::unique_ptr<int[]> &matches_arr, size_t pos,
                                size_t gap_limit) {
 
-      int start_post = pos - 1;
+      int start_post = int(pos) - 1;
       while (start_post >= 0) {
         if (matches_arr[start_post] != -1) break;
         if (start_post < signed(pos) - signed(gap_limit) + 1) break;
@@ -236,7 +235,7 @@ namespace align {
                                 const std::vector<std::string> &docs, std::unique_ptr<int[]> &matches_arr,
                                 size_t matches_arr_size, size_t pos, size_t gap_limit) {
 
-      int start_post = pos + 1;
+      int start_post = int(pos) + 1;
       while (start_post < signed(matches_arr_size)) {
         if (matches_arr[start_post] != -1) break;
         if (start_post > signed(pos) + signed(gap_limit) - 1) break;

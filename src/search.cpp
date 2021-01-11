@@ -1,14 +1,11 @@
 
 #include "search.h"
-#include "align.h"
 #include "utils/common.h"
 
-#include <string>
 #include <vector>
 #include <memory>
 #include <limits>
 #include <utility>
-#include <memory>
 
 #include <boost/make_unique.hpp>
 #include <boost/functional/hash.hpp>
@@ -51,7 +48,7 @@ namespace search {
 
       for (size_t s = 0; s < smap_list.size(); ++s) {
         // iterate in reverse order so the entry with the lowest 
-        for (utils::scoremap::reverse_iterator it = smap_list[s].rbegin(), end = smap_list[s].rend(); it != end; ++it) {
+        for (auto it = smap_list[s].rbegin(), end = smap_list[s].rend(); it != end; ++it) {
           alignments.insert({{s, it->second.first}, it->first});
         }
       }
@@ -100,8 +97,8 @@ namespace search {
 
     void Dynamic::extract_matches(utils::matches_vec &res) {
       res.clear();
-      int i = rows - 2;
-      int j = cols - 2;
+      int i = int(rows) - 2;
+      int j = int(cols) - 2;
       char pointer;
 
       while (i >= 0 && j >= 0) {
@@ -167,7 +164,7 @@ namespace search {
     void Munkres::process(std::vector<utils::scoremap> &smap_list) {
       double val;
       for (size_t i = 0; i < smap_list.size(); ++i) {
-        utils::scoremap::reverse_iterator it = smap_list.at(i).rbegin();
+        auto it = smap_list.at(i).rbegin();
         while (it != smap_list.at(i).rend()) {
           if (min_cost)
             val = it->first;
@@ -311,8 +308,8 @@ namespace search {
         for (size_t c = 0; c < cols; ++c) {
           if (*get_cost(r, c) == 0 && !row_cover[r] && !col_cover[c]) {
             *get_mask(r, c) = 1;
-            row_cover[r] = 1;
-            col_cover[c] = 1;
+            row_cover[r] = true;
+            col_cover[c] = true;
           }
         }
       }
@@ -359,8 +356,8 @@ namespace search {
           return true;
         }
 
-        row_cover[zero.first] = 1;
-        col_cover[found_col] = 0;
+        row_cover[zero.first] = true;
+        col_cover[found_col] = false;
       }
 
     }
@@ -380,7 +377,7 @@ namespace search {
     }
 
     size_t Munkres::find_prime_in_row(size_t r) {
-      for (int c = cols - 1; c >= 0; --c) {
+      for (int c = int(cols) - 1; c >= 0; --c) {
         if (*get_mask(r, c) == 2) {
           return c;
         }
@@ -390,7 +387,7 @@ namespace search {
     }
 
     size_t Munkres::find_star_in_row(size_t r) {
-      for (int c = cols - 1; c >= 0; --c) {
+      for (int c = int(cols) - 1; c >= 0; --c) {
         if (*get_mask(r, c) == 1) {
           return c;
         }
@@ -400,7 +397,7 @@ namespace search {
     }
 
     size_t Munkres::find_star_in_col(size_t c) {
-      for (int r = rows - 1; r >= 0; --r) {
+      for (int r = int(rows) - 1; r >= 0; --r) {
         if (*get_mask(r, c) == 1) {
           return r;
         }
@@ -512,7 +509,7 @@ namespace search {
     void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, float threshold) {
       for (auto m: matches) {
         if (!m.first.same() || !m.second.same())
-          throw "Inconsistent data: Only 1:1 alignments can be filtered!";
+          throw std::runtime_error("Inconsistent data: Only 1:1 alignments can be filtered!");
       }
 
       utils::matches_vec matches_cpy;
