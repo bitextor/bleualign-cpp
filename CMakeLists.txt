@@ -24,14 +24,15 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DU_USING_ICU_NAMESPACE=1")
 
-if( PREPROCESS_PATH )
-	include_directories(${PREPROCESS_PATH})
-	add_subdirectory(${PREPROCESS_PATH} preprocess-bin)
-else()
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/preprocess)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/preprocess preprocess-bin)
+# kpu/preprocess
+if (NOT PREPROCESS_PATH)
+    # if preprocess_path is not defined, use the one in warc2text folder
+    set(PREPROCESS_PATH "${PROJECT_SOURCE_DIR}/preprocess")
 endif()
 
+if (NOT SKIP_PREPROCESS_BUILD)
+    add_subdirectory(${PREPROCESS_PATH} ${PREPROCESS_PATH}/bin)
+endif()
 
 
 # find *.h and *.cpp files
@@ -40,6 +41,7 @@ file(GLOB bleualign_cpp_cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURREN
 
 # make bleualign_cpp_lib library
 add_library(bleualign_cpp_lib STATIC ${bleualign_cpp_headers} ${bleualign_cpp_cpp})
+target_include_directories(bleualign_cpp_lib PUBLIC ${PREPROCESS_PATH})
 target_link_libraries(bleualign_cpp_lib ${Boost_LIBRARIES} preprocess_util)
 
 # bleualign_cpp
