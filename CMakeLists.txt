@@ -10,7 +10,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(BUILD_TEST "Build tests" OFF)
 
 # flags
-#set(CMAKE_BUILD_TYPE release)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wextra -pthread -O3 -Ofast")
 set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -pthread -g ")
@@ -48,6 +50,11 @@ target_link_libraries(bleualign_cpp_lib ${Boost_LIBRARIES} preprocess_util)
 add_executable(bleualign_cpp main.cpp)
 target_link_libraries(bleualign_cpp bleualign_cpp_lib)
 
+include(GNUInstallDirs)
+install(TARGETS bleualign_cpp
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 
 # build tests with GTEST
 if (BUILD_TEST)
