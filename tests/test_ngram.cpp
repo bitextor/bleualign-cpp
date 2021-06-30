@@ -222,9 +222,9 @@ namespace {
       ngram::NGramCounter ngc_lorem1(1);
       ngc_lorem1.process(tokens_lorem1);
       ASSERT_EQ(ngc_lorem1.count_tokens(), 63);
-      ASSERT_EQ(ngc_lorem1.get(ngram::NGramContainer("etincidunt")), 50);
-      ASSERT_EQ(ngc_lorem1.get(ngram::NGramContainer("est")), 41);
-      ASSERT_EQ(ngc_lorem1.get(ngram::NGramContainer("Modi")), 2);
+      ASSERT_EQ(ngc_lorem1.get(ngram::get_token_hash("etincidunt"), 1), 50);
+      ASSERT_EQ(ngc_lorem1.get(ngram::get_token_hash("est"), 1), 41);
+      ASSERT_EQ(ngc_lorem1.get(ngram::get_token_hash("Modi"), 1), 2);
 
       std::vector<std::string> tokens_lorem2 = {"Dolorem", "voluptatem", "sed", "voluptatem", "amet", "sed", "sed",
                                                 "porro",
@@ -325,9 +325,10 @@ namespace {
       ngram::NGramCounter ngc_lorem2(2);
       ngc_lorem2.process(tokens_lorem2);
       ASSERT_EQ(ngc_lorem2.count_tokens(), 465);
-      ASSERT_EQ(ngc_lorem2.get(ngram::NGramContainer("voluptatem", "velit")), 2);
-      ASSERT_EQ(ngc_lorem2.get(ngram::NGramContainer("aliquam")), 20);
-      ASSERT_EQ(ngc_lorem2.get(ngram::NGramContainer("amet", "sit")), 5);
+      ASSERT_EQ(ngc_lorem2.get(ngram::get_token_hash("voluptatem",
+                                ngram::get_token_hash("velit")), 2), 2);
+      ASSERT_EQ(ngc_lorem2.get(ngram::get_token_hash("aliquam"), 1), 20);
+      ASSERT_EQ(ngc_lorem2.get(ngram::get_token_hash("amet", ngram::get_token_hash("sit")), 2), 5);
 
       std::vector<std::string> tokens_lorem3 = {"Dolore", "labore", "amet", "dolorem", "porro", "numquam", "ipsum",
                                                 "eius",
@@ -619,9 +620,12 @@ namespace {
       ngram::NGramCounter ngc_lorem3(3);
       ngc_lorem3.process(tokens_lorem3);
       ASSERT_EQ(ngc_lorem3.count_tokens(), 2197);
-      ASSERT_EQ(ngc_lorem3.get(ngram::NGramContainer("velit", "magnam")), 6);
-      ASSERT_EQ(ngc_lorem3.get(ngram::NGramContainer("neque")), 64);
-      ASSERT_EQ(ngc_lorem3.get(ngram::NGramContainer("ut", "quisquam", "voluptatem")), 2);
+      ASSERT_EQ(ngc_lorem3.get(ngram::get_token_hash("velit",
+                                ngram::get_token_hash("magnam")), 2), 6);
+      ASSERT_EQ(ngc_lorem3.get(ngram::get_token_hash("neque"), 1), 64);
+      ASSERT_EQ(ngc_lorem3.get(ngram::get_token_hash("ut",
+                                ngram::get_token_hash("quisquam",
+                                ngram::get_token_hash("voluptatem"))), 3), 2);
 
       std::vector<std::string> tokens_lorem4 = {"Magnam", "amet", "ipsum", "modi", "modi", "numquam", "tempora",
                                                 "quiquia",
@@ -822,15 +826,20 @@ namespace {
       ngram::NGramCounter ngc_lorem4(4);
       ngc_lorem4.process(tokens_lorem4);
       ASSERT_EQ(ngc_lorem4.count_tokens(), 2597);
-      ASSERT_EQ(ngc_lorem4.get(ngram::NGramContainer("consectetur.", "Eius", "consectetur", "dolor")), 1);
-      ASSERT_EQ(ngc_lorem4.get(ngram::NGramContainer("neque")), 45);
-      ASSERT_EQ(ngc_lorem4.get(ngram::NGramContainer("quisquam", "quiquia")), 4);
-      ASSERT_EQ(ngc_lorem4.get(ngram::NGramContainer("est", "quaerat")), 3);
+      ASSERT_EQ(ngc_lorem4.get(ngram::get_token_hash("consectetur.",
+                                ngram::get_token_hash("Eius",
+                                ngram::get_token_hash("consectetur",
+                                ngram::get_token_hash("dolor")))), 4), 1);
+      ASSERT_EQ(ngc_lorem4.get(ngram::get_token_hash("neque"), 1), 45);
+      ASSERT_EQ(ngc_lorem4.get(ngram::get_token_hash("quisquam",
+                                ngram::get_token_hash("quiquia")), 2), 4);
+      ASSERT_EQ(ngc_lorem4.get(ngram::get_token_hash("est",
+                                ngram::get_token_hash("quaerat")), 2), 3);
 
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(1), ngc_lorem4.end(1)), 76);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(2), ngc_lorem4.end(2)), 651);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(3), ngc_lorem4.end(3)), 930);
-      ASSERT_EQ(std::distance(ngc_lorem4.begin(4), ngc_lorem4.end(4)), 940);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(1), ngc_lorem4.cend(1)), 76);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(2), ngc_lorem4.cend(2)), 651);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(3), ngc_lorem4.cend(3)), 930);
+      ASSERT_EQ(std::distance(ngc_lorem4.cbegin(4), ngc_lorem4.cend(4)), 940);
 
 
     }

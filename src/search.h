@@ -34,11 +34,11 @@ namespace search {
 
         Dynamic(size_t rows, size_t cols);
 
-        ~Dynamic() {};
+        ~Dynamic() = default;;
 
-        double *get_score(size_t r, size_t c);
+        float &get_score(size_t r, size_t c);
 
-        char *get_backpointer(size_t r, size_t c);
+        char &get_backpointer(size_t r, size_t c);
 
         void process(std::vector<utils::scoremap> &smap_list) override;
 
@@ -52,8 +52,8 @@ namespace search {
         size_t rows = 0;
         size_t cols = 0;
 
-        boost::unordered_map<utils::sizet_pair, double> alignments;
-        std::unique_ptr<double[]> scores;
+        boost::unordered_map<utils::sizet_pair, float> alignments;
+        std::unique_ptr<float[]> scores;
         std::unique_ptr<char[]> back_pointers;
 
     };
@@ -65,7 +65,7 @@ namespace search {
 
         Munkres(size_t rows, size_t cols, bool min_cost = true);
 
-        ~Munkres() {};
+        ~Munkres() = default;;
 
         void process(std::vector<utils::scoremap> &smap_list);
 
@@ -126,9 +126,9 @@ namespace search {
 
 
     void FindMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, size_t translated_size,
-                     size_t english_size, double threshold = 0);
+                     size_t english_size, float threshold = 0);
 
-    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, double threshold = 0);
+    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, float threshold = 0);
 
 
 }

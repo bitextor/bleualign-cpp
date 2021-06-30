@@ -1,3 +1,4 @@
 [submodule "preprocess"]
 	path = preprocess
 	url = https://github.com/kpu/preprocess.git
+    ignore = dirty

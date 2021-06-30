@@ -14,7 +14,7 @@ namespace scorer {
     typedef std::pair<std::regex, std::string> rule_pair;
 
     const static boost::regex tokenize_regex(
-            "([\\{-\\~\\[-\\` -\\&\\(-\\+\\:-\\@\\/])|(?:(?<![0-9])([\\.,]))|(?:([\\.,])(?![0-9]))|(?:(?<=[0-9])(-))");
+            R"(([\{-\~\[-\` -\&\(-\+\:-\@\/])|(?:(?<![0-9])([\.,]))|(?:([\.,])(?![0-9]))|(?:(?<=[0-9])(-)))");
 
     const static rule_pair normalize1_rules[] = {
             std::make_pair(std::regex("<skipped>"), ""),  // strip "skipped" tags
@@ -41,9 +41,6 @@ namespace scorer {
     void Tokenize(std::vector<std::string> &token_vec, const std::string &text);
 
     void normalize(std::vector<std::string> &token_vec, const std::string &text, const std::string &language_type);
-
-    void
-    cook_ref_set(std::vector<ngram::NGramCounter> &counter_vec, const std::string &text, unsigned short ngram_size);
 
 }
 

@@ -10,28 +10,31 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(BUILD_TEST "Build tests" OFF)
 
 # flags
-#set(CMAKE_BUILD_TYPE release)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wextra -pthread -O3 -Ofast")
 set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -pthread -g ")
 
 
 # Boost
-find_package(Boost REQUIRED COMPONENTS filesystem log program_options system iostreams regex)
+find_package(Boost REQUIRED COMPONENTS program_options regex serialization)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DU_USING_ICU_NAMESPACE=1")
 
-if( PREPROCESS_PATH )
-	include_directories(${PREPROCESS_PATH})
-	add_subdirectory(${PREPROCESS_PATH} preprocess-bin)
-else()
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/preprocess)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/preprocess preprocess-bin)
+# kpu/preprocess
+if (NOT PREPROCESS_PATH)
+    # if preprocess_path is not defined, use the one in warc2text folder
+    set(PREPROCESS_PATH "${PROJECT_SOURCE_DIR}/preprocess")
 endif()
 
+if (NOT SKIP_PREPROCESS_BUILD)
+    add_subdirectory(${PREPROCESS_PATH} ${PREPROCESS_PATH}/bin)
+endif()
 
 
 # find *.h and *.cpp files
@@ -39,13 +42,19 @@ file(GLOB bleualign_cpp_headers ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h ${CMAKE_CURR
 file(GLOB bleualign_cpp_cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
 # make bleualign_cpp_lib library
-add_library(bleualign_cpp_lib SHARED ${bleualign_cpp_headers} ${bleualign_cpp_cpp})
+add_library(bleualign_cpp_lib STATIC ${bleualign_cpp_headers} ${bleualign_cpp_cpp})
+target_include_directories(bleualign_cpp_lib PUBLIC ${PREPROCESS_PATH})
 target_link_libraries(bleualign_cpp_lib ${Boost_LIBRARIES} preprocess_util)
 
 # bleualign_cpp
 add_executable(bleualign_cpp main.cpp)
 target_link_libraries(bleualign_cpp bleualign_cpp_lib)
 
+include(GNUInstallDirs)
+install(TARGETS bleualign_cpp
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 
 # build tests with GTEST
 if (BUILD_TEST)
@@ -65,6 +74,7 @@ if (BUILD_TEST)
         LOG_DOWNLOAD ON
         LOG_CONFIGURE ON
         LOG_BUILD ON
+        CMAKE_ARGS -DCMAKE_CXX_FLAGS=-std=c++11
     )
 
     # Include

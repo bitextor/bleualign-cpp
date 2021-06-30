@@ -3,137 +3,152 @@
 #include "scorer.h"
 #include "ngram.h"
 #include "search.h"
-#include "util/string_piece.hh"
 #include "utils/common.h"
-#include "utils/logging.h"
+#include "util/murmur_hash.hh"
 
-#include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <boost/make_unique.hpp>
 #include <vector>
 #include <memory>
+#include <iomanip>
 
-#include "utils/CompressedWriter.h"
-
+namespace {
+  template <typename T, class Operation> T accumulate_intersection(
+    ngram::ngram_vector::const_iterator lbegin,
+    ngram::ngram_vector::const_iterator lend,
+    ngram::ngram_vector::const_iterator rbegin,
+    ngram::ngram_vector::const_iterator rend, 
+    T first_value,
+    Operation op) {
+    while (lbegin != lend && rbegin != rend) {
+      if (lbegin->first < rbegin->first)
+        ++lbegin;
+      else if (lbegin->first > rbegin->first)
+        ++rbegin;
+      else {
+        first_value = op(first_value, lbegin->second, rbegin->second);
+        ++lbegin;
+        ++rbegin;
+      }
+    }
+    return first_value;
+  }
+}
 
 namespace align {
 
-    void AlignDocuments(const std::string &output_path, const utils::AlignData &align_data, const StringPiece matched_text1_uri,
-                        StringPiece matched_text2_uri, double threshold) {
-      //LOG_INFO << "Processing " << matched_text1_uri << " and " << matched_text2_uri;
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash) {
 
       utils::matches_vec matches;
 
-      Align(matches, align_data.umap_text1translated.at(matched_text1_uri.data()),
-            align_data.umap_text2.at(matched_text2_uri.data()), threshold);
-      WriteAlignedTextToFile(output_path, matches, align_data.umap_text1.at(matched_text1_uri.data()),
-                             align_data.umap_text2.at(matched_text2_uri.data()));
+      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold);
+      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash);
 
     }
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
-               const std::vector<std::string> &text2_doc, double threshold) {
+               const std::vector<std::string> &text2translated_doc, double threshold) {
 
       std::vector<utils::scoremap> scorelist;
-      EvalSents(scorelist, text1translated_doc, text2_doc, 2, 3);
-      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2_doc.size(), threshold);
-      GapFiller(matches, text1translated_doc, text2_doc, 3, threshold);
+      EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
+      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
+      GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
 
     }
 
     /* given list of test sentences and list of reference sentences, calculate bleu scores */
     void EvalSents(std::vector<utils::scoremap> &scorelist, const std::vector<std::string> &text1translated_doc,
-                   const std::vector<std::string> &text2_doc, unsigned short ngram_size, size_t maxalternatives) {
+                   const std::vector<std::string> &text2translated_doc, unsigned short ngram_size, size_t maxalternatives) {
 
-      std::vector<ngram::NGramCounter> cooktarget;
-      for (size_t i = 0; i < text2_doc.size(); ++i) {
-        scorer::cook_ref_set(cooktarget, text2_doc.at(i), ngram_size);
+      std::vector<ngram::NGramCounter> src_corpus_ngrams;
+      std::vector<std::string> text_normalized;
+
+      // Note: score vector moved here from critical section to prevent constant re-allocation
+      std::vector<int> correct(ngram_size, 0);
+
+      // count ngrams for each sentence of the source corpus
+      for (const std::string &src_sentence : text2translated_doc) {
+        scorer::normalize(text_normalized, src_sentence, "western");
+        ngram::NGramCounter counter(ngram_size);
+        counter.process(text_normalized);
+        src_corpus_ngrams.push_back(counter);
       }
 
-      for (size_t trans_i = 0; trans_i < text1translated_doc.size(); ++trans_i) {
-        // copied over from bleu.py to minimize redundancy
-        std::vector<std::string> test_normalized;
-        scorer::normalize(test_normalized, text1translated_doc.at(trans_i), "western");
+      // for each sentence of the target corpus, compute the bleu score with each sentence of the source
+      // keep <maxalternatives> best options
+      for (const std::string &trg_sentence : text1translated_doc) {
 
-        std::vector<size_t> guess;
-        for (unsigned short k = 0; k < ngram_size; ++k) {
-          guess.push_back(std::max<unsigned short>(test_normalized.size() - k, 0));
-        }
-
-        ngram::NGramCounter test_counts(ngram_size);
-        test_counts.process(test_normalized);
+        // tokenize and count ngrams of the target sentence
+        scorer::normalize(text_normalized, trg_sentence, "western");
+        ngram::NGramCounter trg_counts(ngram_size);
+        trg_counts.process(text_normalized);
 
         utils::scoremap smap;
-        for (size_t c = 0; c < cooktarget.size(); ++c) {
 
+        // Loop over every source sentence's ngram counts
+        size_t src_corpus_i = 0;
+        for (const ngram::NGramCounter &src_counts : src_corpus_ngrams) {
           float logbleu = 0.0;
-          std::vector<int> cooked_test_correct;
-          cooked_test_correct.assign(ngram_size, 0);
 
-          ngram::ngram_map::iterator map_it;
-          for (size_t order = 1; order <= ngram_size; ++order) {
-            map_it = test_counts.begin(order);
-            while (map_it != test_counts.end(order)) {
-              int cooktarget_count = cooktarget.at(c).get(map_it->first);
-              if (cooktarget_count > 0) {
-                // update correct counts
-                int test_count = test_counts.get(map_it->first);
-                cooked_test_correct.at(order - 1) += std::min(cooktarget_count, test_count);
-              }
-
-              ++map_it;
-            }
-
-            // logbleu
-            logbleu += log(cooked_test_correct.at(order - 1)) - log(guess.at(order - 1));
+          // compute sum of precision scores for ngrams of order 1 to <ngram_size>
+          for (unsigned short order = 1; order <= ngram_size; ++order) {
+            correct[order - 1] = ::accumulate_intersection(
+              src_counts.cbegin(order), src_counts.cend(order),
+              trg_counts.cbegin(order), trg_counts.cend(order),
+              0,
+              [](size_t acc, size_t src_ngram_freq, size_t trg_ngram_freq) {
+                return acc + std::min(src_ngram_freq, trg_ngram_freq);
+              });
+            logbleu += float(log(correct[order - 1]) - log(std::max<int>(trg_counts.processed() - order + 1, 0)));
           }
 
-          logbleu /= ngram_size;
-          logbleu += std::min<float>(0, 1 - static_cast<float>(cooktarget.at(c).processed()) /
-                                            static_cast<float>(test_normalized.size()));
-          float score = exp(logbleu);
+          // apply uniform weights (wn = 1/N)
+          logbleu /= float(ngram_size);
+          // brevity penalty
+          logbleu += std::min<float>(0, 1 - static_cast<float>(src_counts.processed()) / static_cast<float>(trg_counts.processed()));
 
-          if (score > 0) {
+          float src2trg_score = std::exp(logbleu);
+
+          if (src2trg_score > 0) {
             // calculate bleu score in reverse direction
             logbleu = 0.0;
             for (size_t order = 1; order <= ngram_size; ++order) {
-              logbleu += log(cooked_test_correct.at(order - 1)) -
-                         log(std::max<int>(int(cooktarget.at(c).processed()) - order + 1, 0));
+              logbleu += float(log(correct[order-1]) - log(std::max<int>(src_counts.processed() - order + 1, 0)));
             }
-            logbleu /= ngram_size;
-            logbleu += std::min<float>(0, 1 - static_cast<float>(test_normalized.size()) /
-                                              static_cast<float>(cooktarget.at(c).processed()));
-            float score2 = exp(logbleu);
-            float meanscore = (2 * score * score2) / (score + score2);
-
-            smap.insert(utils::scoremap::value_type(meanscore, std::make_pair(c, cooked_test_correct)));
+            logbleu /= float(ngram_size);
+            logbleu += std::min<float>(0, 1 - static_cast<float>(trg_counts.processed()) / static_cast<float>(src_counts.processed()));
+            float trg2src_score = std::exp(logbleu);
+            float meanscore = (2 * src2trg_score * trg2src_score) / (src2trg_score + trg2src_score);
+            smap.insert(utils::scoremap::value_type(meanscore, std::make_pair(src_corpus_i, correct)));
           }
+          ++src_corpus_i;
         }
 
         // keep top N items
         if (smap.size() > maxalternatives) {
-          utils::scoremap::iterator rem_it = smap.end();
+          auto rem_it = smap.end();
           std::advance(rem_it, -(maxalternatives));
           smap.erase(smap.begin(), rem_it);
         }
 
         scorelist.push_back(smap);
       }
+
     }
 
     void GapFiller(utils::matches_vec &matched, const std::vector<std::string> &text1translated_doc,
-                   const std::vector<std::string> &text2_doc, size_t gap_limit, double threshold) {
+                   const std::vector<std::string> &text2translated_doc, size_t gap_limit, double threshold) {
 
       // check that matches vector contains only 1:1 matches
       for (auto m: matched) {
         if (!m.first.same() || !m.second.same())
-          throw "Inconsistent data in matches!";
+          throw std::runtime_error("Inconsistent data in matches!");
       }
 
       std::unique_ptr<int[]> matches_arr_translated = boost::make_unique<int[]>(text1translated_doc.size());
-      std::unique_ptr<int[]> matches_arr_text2 = boost::make_unique<int[]>(text2_doc.size());
+      std::unique_ptr<int[]> matches_arr_text2 = boost::make_unique<int[]>(text2translated_doc.size());
       std::fill(matches_arr_translated.get(), matches_arr_translated.get() + text1translated_doc.size(), -1);
-      std::fill(matches_arr_text2.get(), matches_arr_text2.get() + text2_doc.size(), -1);
+      std::fill(matches_arr_text2.get(), matches_arr_text2.get() + text2translated_doc.size(), -1);
 
 
       for (auto m: matched) {
@@ -152,13 +167,13 @@ namespace align {
           if (post == 0) { // pre
             PreGapMergedSentences(merged_text_translated, merged_pos_translated, text1translated_doc,
                                   matches_arr_translated, m.first.from, gap_limit);
-            PreGapMergedSentences(merged_text_text2, merged_pos_text2, text2_doc,
+            PreGapMergedSentences(merged_text_text2, merged_pos_text2, text2translated_doc,
                                   matches_arr_text2, m.second.from, gap_limit);
           } else if (post == 1) { // post
             PostGapMergedSentences(merged_text_translated, merged_pos_translated, text1translated_doc,
                                    matches_arr_translated, text1translated_doc.size(), m.first.from, gap_limit);
-            PostGapMergedSentences(merged_text_text2, merged_pos_text2, text2_doc,
-                                   matches_arr_text2, text2_doc.size(), m.second.from, gap_limit);
+            PostGapMergedSentences(merged_text_text2, merged_pos_text2, text2translated_doc,
+                                   matches_arr_text2, text2translated_doc.size(), m.second.from, gap_limit);
           }
 
           if (merged_text_translated.size() == 1 && merged_text_text2.size() == 1)
@@ -172,24 +187,24 @@ namespace align {
           size_t max_pos_translate;
           size_t max_pos_text2;
           for (size_t i = 0; i < scorelist.size(); ++i) {
-            if (scorelist.at(i).size() == 0) {
+            if (scorelist[i].empty()) {
               continue;
             }
 
-            if (scorelist.at(i).rbegin()->first > max_val && scorelist.at(i).rbegin()->first > threshold) {
-              max_val = scorelist.at(i).rbegin()->first;
+            if (scorelist[i].rbegin()->first > max_val && scorelist[i].rbegin()->first > threshold) {
+              max_val = scorelist[i].rbegin()->first;
               max_pos_translate = i;
-              max_pos_text2 = scorelist.at(i).rbegin()->second.first;
+              max_pos_text2 = scorelist[i].rbegin()->second.first;
             }
           }
 
           // update match
           if (max_val != -1) {
             m = utils::match(
-                    merged_pos_translated.at(max_pos_translate).first,
-                    merged_pos_translated.at(max_pos_translate).second,
-                    merged_pos_text2.at(max_pos_text2).first,
-                    merged_pos_text2.at(max_pos_text2).second, max_val);
+                    merged_pos_translated[max_pos_translate].first,
+                    merged_pos_translated[max_pos_translate].second,
+                    merged_pos_text2[max_pos_text2].first,
+                    merged_pos_text2[max_pos_text2].second, max_val);
           }
 
 
@@ -205,7 +220,7 @@ namespace align {
                                const std::vector<std::string> &docs, std::unique_ptr<int[]> &matches_arr, size_t pos,
                                size_t gap_limit) {
 
-      int start_post = pos - 1;
+      int start_post = int(pos) - 1;
       while (start_post >= 0) {
         if (matches_arr[start_post] != -1) break;
         if (start_post < signed(pos) - signed(gap_limit) + 1) break;
@@ -221,7 +236,7 @@ namespace align {
                                 const std::vector<std::string> &docs, std::unique_ptr<int[]> &matches_arr,
                                 size_t matches_arr_size, size_t pos, size_t gap_limit) {
 
-      int start_post = pos + 1;
+      int start_post = int(pos) + 1;
       while (start_post < signed(matches_arr_size)) {
         if (matches_arr[start_post] != -1) break;
         if (start_post > signed(pos) + signed(gap_limit) - 1) break;
@@ -279,37 +294,43 @@ namespace align {
       }
     }
 
-    void WriteAlignedTextToFile(const std::string &output_path, 
-                                const utils::matches_vec &matches,
+    void WriteAlignedTextToStdout(const utils::matches_vec &matches,
                                 const std::vector<std::string> &text1_doc,
-                                const std::vector<std::string> &text2_doc) {
+                                const std::vector<std::string> &text2_doc,
+                                const std::string& url1,
+                                const std::string& url2,
+                                const bool print_sent_hash) {
 
-      std::stringstream ss;
-      utils::CompressedWriter gw(output_path);
       for (auto m: matches) {
-        ss.str("");
-        for (size_t i = m.first.from; i < m.first.to; ++i) {
-          ss << text1_doc[i] << ' ';
-        }
-        ss << text1_doc[m.first.to];
+        std::cout << url1 << "\t" << url2 << "\t";
 
-        ss << "\t";
+        for (size_t i = m.first.from; i < m.first.to; ++i) {
+          std::cout << text1_doc[i] << ' ';
+        }
+        std::cout << text1_doc[m.first.to] << "\t";
 
         for (size_t i = m.second.from; i < m.second.to; ++i) {
-          ss << text2_doc[i] << ' ';
+          std::cout << text2_doc[i] << ' ';
         }
-        ss << text2_doc[m.second.to];
- 
-      	ss << "\t";
+        std::cout << text2_doc[m.second.to] << "\t";
 
-        ss << m.score;
+        std::cout << std::fixed << std::setprecision(6) << m.score;
 
-        ss << "\n";
+        if (print_sent_hash){
+            std::cout << "\t";
+            for (size_t i = m.first.from; i < m.first.to; ++i) {
+                std::cout << std::hex << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
+            }
+            std::cout << std::hex << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
 
-        std::string line = ss.str();
-        gw.write(line);
+            for (size_t i = m.second.from; i < m.second.to; ++i) {
+                std::cout << std::hex << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
+            }
+            std::cout << std::hex << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
+        }
+
+        std::cout << "\n";
       }
     }
-
 
 } // namespace align

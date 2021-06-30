@@ -1,178 +1,104 @@
 
-#include "main.h"
 #include "src/align.h"
 #include "src/utils/common.h"
-#include "src/utils/CompressedWriter.h"
-#include "src/utils/logging.h"
-#include "src/utils/string_to_float.h"
 
-#include "util/string_piece.hh"
-#include "util/file_piece.hh"
-#include "util/read_compressed.hh"
-#include "util/exception.hh"
-
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <vector>
+#include <stdexcept>
 #include <boost/program_options.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
-
 
 namespace po = boost::program_options;
 
-std::string MungeFilePath(const std::string &filePath)
-{
-  if (boost::filesystem::exists(filePath)) {
-    return filePath;
-  }
-  else if (boost::filesystem::exists(filePath + ".gz")) {
-    return filePath + ".gz";
-  }
-#ifdef XZ_COMPRESS
-  else if (boost::filesystem::exists(filePath + ".xz")) {
-    return filePath + ".xz";
-  }
-#endif
-  else {
-    UTIL_THROW(util::FileOpenException, "File does not exist");
-  }
+void Process(std::istream &in, float bleu_threshold, bool print_sent_hash) {
+  utils::DocumentPair doc_pair;
+  std::string line;
+  std::vector<std::string> split_line;
 
-}
+  size_t n = 0;
 
-void LoadExtracted(utils::umap_extracted &umap, const std::string &file_path) {
-  util::FilePiece in(MungeFilePath(file_path).c_str());
-  std::vector<StringPiece> split_line;
+  while(getline(in, line)) {
+    ++n;
 
-  StringPiece l;
-  while (in.ReadLineOrEOF(l)) {
-    split_line.clear();
-    utils::SplitStringPiece(split_line, l, '\t', 0, 2);
+    utils::SplitString(split_line, line, '\t');
 
-    std::string key = utils::PieceToString(split_line.at(0));
-    umap[key].push_back(utils::PieceToString(split_line.at(1)));
-  }
-
-}
-
-
-bool LoadMatches(utils::matches_list &matches, const std::string &file_path, float threshold) {
-  try {
-    util::FilePiece in(MungeFilePath(file_path).c_str());
-
-    std::vector<StringPiece> split_line;
-
-    StringPiece l;
-    while (in.ReadLineOrEOF(l)) {
-      split_line.clear();
-      utils::SplitStringPiece(split_line, l, '\t', 0, 3);
-
-      if (utils::ToFloat(split_line.at(0)) >= threshold)
-        matches.push_back(std::make_pair(utils::PieceToString(split_line.at(1)), utils::PieceToString(split_line.at(2))));
+    // Expect at least 5 (maybe 6) columns
+    if (split_line.size() < 5) {
+      std::stringstream error;
+      error << "Not enough fields on line " << n;
+      throw std::runtime_error(error.str());
     }
 
-    return true;
-  }
-  catch (...) {
-    return false;
-  }
-}
+    doc_pair.url1 = split_line[0];
+    doc_pair.url2 = split_line[1];
+    utils::DecodeAndSplit(doc_pair.text1, split_line[2], '\n', true);
+    utils::DecodeAndSplit(doc_pair.text2, split_line[3], '\n', true);
 
+    // Processed version of text 1 (i.e. translated to match language text 2)
+    utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n', true);
+    if (doc_pair.text1.size() != doc_pair.text1translated.size()) {
+      std::stringstream error;
+      error << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
+            << doc_pair.text1.size() << " vs " << doc_pair.text1translated.size() << ")";
+      throw std::runtime_error(error.str());
+    }
+    
+    // Optionally sixth column with processed version of text 2 (i.e. to better
+    // match with the processed version of text 1)
+    if (split_line.size() < 6) {
+      doc_pair.text2translated = doc_pair.text2;
+    } else {
+      utils::DecodeAndSplit(doc_pair.text2translated, split_line[5], '\n', true);
 
-void LoadData(utils::AlignData &align_data, const utils::Config &cfg) {
-  bool matchLoaded = LoadMatches(align_data.matches, cfg.matches_path, cfg.doc_threshold);
+      if (doc_pair.text2.size() != doc_pair.text2translated.size()) {
+        std::stringstream error; 
+        error << "On line " << n << " column 4 and 6 don't have an equal number of lines ("
+              << doc_pair.text2.size() << " vs " << doc_pair.text2translated.size() << ")";
+        throw std::runtime_error(error.str());
+      }
+    }
 
-  if (matchLoaded) {
-    LoadExtracted(align_data.umap_text1, cfg.text1_path);
-    LoadExtracted(align_data.umap_text2, cfg.text2_path);
-    LoadExtracted(align_data.umap_text1translated, cfg.text1_translated_path);
-  }
-}
-
-
-void Process(const utils::Config &cfg) {
-  utils::AlignData align_data;
-  LoadData(align_data, cfg);
-
-  for (size_t i = 0; i < align_data.matches.size(); ++i) {
-    std::string output_path = MakeOutputPath(cfg.output_dir, std::to_string(i));
-    align::AlignDocuments(output_path, align_data, align_data.matches.at(i).first, align_data.matches.at(i).second, cfg.bleu_threshold);
-  }
-
-  WriteAlignedTextToFile(cfg.output_dir, align_data.matches);
-
-}
-
-
-std::string MakeOutputPath(const std::string &path_dir, const std::string &suffix) {
-  std::stringstream ss;
-  ss << path_dir << "/aligned." << suffix << ".gz";
-  return ss.str();
-}
-
-void WriteAlignedTextToFile(const std::string &output_dir, const utils::matches_list &matches) {
-
-  std::stringstream ss;
-  utils::CompressedWriter gw(output_dir + "/align.info.gz");
-  for (size_t i = 0; i < matches.size(); ++i) {
-    ss.str("");
-
-    ss << std::to_string(i) << "\t";
-    ss << matches.at(i).first << "\t";
-    ss << matches.at(i).second << "\t";
-    ss << "\n";
-
-    std::string line = ss.str();
-    gw.write(line);
+    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash);
+    std::cout << std::flush;
   }
 }
-
 
 int main(int argc, char *argv[]) {
-
-  utils::init();
+  float bleu_threshold = 0.0f;
+  bool print_sent_hash = false;
+  std::vector<std::string> filenames;  
 
   po::options_description desc("Allowed options");
   desc.add_options()
           ("help", "produce help message")
-          ("text1", po::value<std::string>()->required(), "path to the first text file")
-          ("text2", po::value<std::string>()->required(), "path to the second text file")
-          ("text1translated", po::value<std::string>()->required(), "path to the translated text file (text1 to text2)")
-          ("output-dir", po::value<std::string>()->required(), "path to the output directory")
-          ("matches", po::value<std::string>()->required(),
-           "path to a file containing matched documents. Format: score <tab> uri(text1) <tab> uri(text2)")
-          ("doc-threshold", po::value<float>()->default_value(0.0f),
-           "threshold for the matched documents (documents with a lower threshold are skipped)")
-          ("bleu-threshold", po::value<float>()->default_value(0.0f), "BLEU threshold for matched sentences");
+          ("bleu-threshold", po::value(&bleu_threshold), "BLEU threshold for matched sentences")
+          ("print-sent-hash", po::bool_switch(&print_sent_hash)->default_value(false), "print Murmurhash hashes of the output sentences")
+          ("input-file", po::value(&filenames));
 
+  po::positional_options_description positional;
+  positional.add("input-file", -1);
 
   po::variables_map vm;
-  po::store(po::parse_command_line(argc, reinterpret_cast<const char *const *>(argv), desc), vm);
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(positional).run(), vm);
   po::notify(vm);
 
   if (vm.count("help")) {
-    std::cerr << desc << std::endl;
+    std::cerr << "Reads matched documents from input-files or stdin of none specified, outputs aligned sentences to stdout\n" <<
+	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64 [ ,text2translated_base64 ]\n" <<
+	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score [ , murmurhash_text1, murmurhash_text2 ]\n\n" <<
+      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [<input-file>...]\n\n" <<
+	    desc << std::endl;
     return 1;
   }
 
-  utils::Config cfg;
-  cfg.text1_path = vm["text1"].as<std::string>();
-  cfg.text2_path = vm["text2"].as<std::string>();
-  cfg.text1_translated_path = vm["text1translated"].as<std::string>();
-  cfg.output_dir = vm["output-dir"].as<std::string>();
-  cfg.matches_path = vm["matches"].as<std::string>();
-  cfg.doc_threshold = vm["doc-threshold"].as<float>();
-  cfg.bleu_threshold = vm["bleu-threshold"].as<float>();
-
-  if (!boost::filesystem::exists(cfg.output_dir)) {
-    std::cerr << "Output directory does not exist!" << std::endl;
-    return 1;
-  }
-
-  if (!boost::filesystem::is_directory(cfg.output_dir)) {
-    std::cerr << "Output path is not a directory!" << std::endl;
-    return 1;
-  }
-
-  Process(cfg);
+  if (filenames.empty())
+    Process(std::cin, bleu_threshold, print_sent_hash);
+  else
+    for (std::string const &filename : filenames) {
+      std::ifstream fin(filename);
+      Process(fin, bleu_threshold, print_sent_hash);
+    }
 
   return 0;
 }

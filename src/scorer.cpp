@@ -1,8 +1,6 @@
 
 #include "scorer.h"
 #include "ngram.h"
-#include "utils/common.h"
-#include "util/string_piece.hh"
 
 #include <iostream>
 #include <boost/regex.hpp>
@@ -50,18 +48,4 @@ namespace scorer {
 
       scorer::Tokenize(token_vec, normalized_text);
     }
-
-    void
-    cook_ref_set(std::vector<ngram::NGramCounter> &counter_vec, const std::string &text, unsigned short ngram_size) {
-      std::vector<std::string> token_vec;
-      scorer::normalize(token_vec, text, "western");
-
-      ngram::NGramCounter ngc(ngram_size);
-      ngc.process(token_vec);
-
-      counter_vec.push_back(ngc);
-
-    }
-
-
 }

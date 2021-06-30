@@ -1,14 +1,11 @@
 
 #include "search.h"
-#include "align.h"
 #include "utils/common.h"
 
-#include <string>
 #include <vector>
 #include <memory>
 #include <limits>
 #include <utility>
-#include <memory>
 
 #include <boost/make_unique.hpp>
 #include <boost/functional/hash.hpp>
@@ -23,25 +20,25 @@ namespace search {
       cols = c + 1;
 
       // initialise
-      scores = boost::make_unique<double[]>(rows * cols);
+      scores = boost::make_unique<float[]>(2 * cols);
       back_pointers = boost::make_unique<char[]>(rows * cols);
 
-      std::fill(scores.get(), scores.get() + rows * cols, 0);
+      std::fill(scores.get(), scores.get() + 2 * cols, 0);
       std::fill(back_pointers.get(), back_pointers.get() + rows * cols, '.');
     }
 
-    double *Dynamic::get_score(size_t r, size_t c) {
+    float &Dynamic::get_score(size_t r, size_t c) {
       if ((r > rows - 1) || (c > cols - 1))
         throw std::runtime_error("invalid cost scores access");
 
-      return &scores[r * cols + c];
+      return scores[(r % 2) * cols + c];
     }
 
-    char *Dynamic::get_backpointer(size_t r, size_t c) {
+    char &Dynamic::get_backpointer(size_t r, size_t c) {
       if ((r > rows - 1) || (c > cols - 1))
         throw std::runtime_error("invalid cost back_pointers access");
 
-      return &back_pointers[r * cols + c];
+      return back_pointers[r * cols + c];
     }
 
     void Dynamic::process(std::vector<utils::scoremap> &smap_list) {
@@ -50,30 +47,29 @@ namespace search {
       }
 
       for (size_t s = 0; s < smap_list.size(); ++s) {
-        utils::scoremap::reverse_iterator it = smap_list.at(s).rbegin();
-        while (it != smap_list.at(s).rend()) {
+        // iterate in reverse order so the entry with the lowest 
+        for (auto it = smap_list[s].rbegin(), end = smap_list[s].rend(); it != end; ++it) {
           alignments.insert({{s, it->second.first}, it->first});
-          ++it;
         }
       }
 
-      double score, best_score;
+      float score, best_score;
       char pointer;
 
-      for (size_t r = 0; r < smap_list.size(); ++r) {
+      for (size_t r = 0; r < rows - 1; ++r) {
         for (size_t c = 0; c < cols - 1; ++c) {
-          best_score = *get_score(r, c + 1);
+          best_score = get_score(r, c + 1);
           pointer = '^';
 
-          score = *get_score(r + 1, c);
+          score = get_score(r + 1, c);
           if (score > best_score) {
             best_score = score;
             pointer = '<';
           }
 
-          boost::unordered_map<utils::sizet_pair, double>::const_iterator got = alignments.find({r, c});
+          boost::unordered_map<utils::sizet_pair, float>::const_iterator got = alignments.find({r, c});
           if (got != alignments.end()) {
-            score = got->second + *get_score(r, c);
+            score = got->second + get_score(r, c);
 
             if (score > best_score) {
               best_score = score;
@@ -81,8 +77,8 @@ namespace search {
             }
           }
 
-          *get_score(r + 1, c + 1) = best_score;
-          *get_backpointer(r, c) = pointer;
+          get_score(r + 1, c + 1) = best_score;
+          get_backpointer(r, c) = pointer;
 
         }
       }
@@ -92,15 +88,7 @@ namespace search {
       std::cout << rows << "x" << cols << "\n";
       for (size_t r = 0; r < rows; ++r) {
         for (size_t c = 0; c < cols; ++c) {
-          std::cout << *(get_score(r, c)) << "\t";
-        }
-        std::cout << "\n";
-      }
-      std::cout << "\n------" << std::endl;
-
-      for (size_t r = 0; r < rows; ++r) {
-        for (size_t c = 0; c < cols; ++c) {
-          std::cout << *(get_backpointer(r, c)) << "\t";
+          std::cout << get_backpointer(r, c) << "\t";
         }
         std::cout << "\n";
       }
@@ -109,20 +97,20 @@ namespace search {
 
     void Dynamic::extract_matches(utils::matches_vec &res) {
       res.clear();
-      int i = rows - 2;
-      int j = cols - 2;
+      int i = int(rows) - 2;
+      int j = int(cols) - 2;
       char pointer;
 
       while (i >= 0 && j >= 0) {
-        pointer = *get_backpointer(i, j);
+        pointer = get_backpointer(i, j);
         if (pointer == '^') {
           i -= 1;
         } else if (pointer == '<') {
           j -= 1;
         } else if (pointer == 'm') {
 
-          double score;
-          boost::unordered_map<utils::sizet_pair, double>::const_iterator got = alignments.find({i, j});
+          float score;
+          boost::unordered_map<utils::sizet_pair, float>::const_iterator got = alignments.find({i, j});
           if (got != alignments.end())
             score = got->second;
           else
@@ -176,7 +164,7 @@ namespace search {
     void Munkres::process(std::vector<utils::scoremap> &smap_list) {
       double val;
       for (size_t i = 0; i < smap_list.size(); ++i) {
-        utils::scoremap::reverse_iterator it = smap_list.at(i).rbegin();
+        auto it = smap_list.at(i).rbegin();
         while (it != smap_list.at(i).rend()) {
           if (min_cost)
             val = it->first;
@@ -320,8 +308,8 @@ namespace search {
         for (size_t c = 0; c < cols; ++c) {
           if (*get_cost(r, c) == 0 && !row_cover[r] && !col_cover[c]) {
             *get_mask(r, c) = 1;
-            row_cover[r] = 1;
-            col_cover[c] = 1;
+            row_cover[r] = true;
+            col_cover[c] = true;
           }
         }
       }
@@ -368,8 +356,8 @@ namespace search {
           return true;
         }
 
-        row_cover[zero.first] = 1;
-        col_cover[found_col] = 0;
+        row_cover[zero.first] = true;
+        col_cover[found_col] = false;
       }
 
     }
@@ -389,7 +377,7 @@ namespace search {
     }
 
     size_t Munkres::find_prime_in_row(size_t r) {
-      for (int c = cols - 1; c >= 0; --c) {
+      for (int c = int(cols) - 1; c >= 0; --c) {
         if (*get_mask(r, c) == 2) {
           return c;
         }
@@ -399,7 +387,7 @@ namespace search {
     }
 
     size_t Munkres::find_star_in_row(size_t r) {
-      for (int c = cols - 1; c >= 0; --c) {
+      for (int c = int(cols) - 1; c >= 0; --c) {
         if (*get_mask(r, c) == 1) {
           return c;
         }
@@ -409,7 +397,7 @@ namespace search {
     }
 
     size_t Munkres::find_star_in_col(size_t c) {
-      for (int r = rows - 1; r >= 0; --r) {
+      for (int r = int(rows) - 1; r >= 0; --r) {
         if (*get_mask(r, c) == 1) {
           return r;
         }
@@ -511,21 +499,21 @@ namespace search {
     }
 
     void FindMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist,
-                     size_t translated_size, size_t english_size, double threshold) {
+                     size_t translated_size, size_t english_size, float threshold) {
       Dynamic finder(translated_size, english_size);
       finder.process(scorelist);
       finder.extract_matches(matches);
       FilterMatches(matches, scorelist, threshold);
     }
 
-    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, double threshold) {
+    void FilterMatches(utils::matches_vec &matches, std::vector<utils::scoremap> &scorelist, float threshold) {
       for (auto m: matches) {
         if (!m.first.same() || !m.second.same())
-          throw "Inconsistent data: Only 1:1 alignments can be filtered!";
+          throw std::runtime_error("Inconsistent data: Only 1:1 alignments can be filtered!");
       }
 
-      utils::matches_vec matches_cpy(matches);
-      matches.clear();
+      utils::matches_vec matches_cpy;
+      std::swap(matches, matches_cpy);
 
       utils::scoremap::reverse_iterator it;
       for (auto m: matches_cpy) {
