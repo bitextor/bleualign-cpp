@@ -11,7 +11,7 @@
 
 namespace po = boost::program_options;
 
-void Process(std::istream &in, float bleu_threshold, bool print_sent_hash) {
+void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool paragraph_identification) {
   utils::DocumentPair doc_pair;
   std::string line;
   std::vector<std::string> split_line;
@@ -59,7 +59,7 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash) {
       }
     }
 
-    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash);
+    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash, paragraph_identification);
     std::cout << std::flush;
   }
 }
@@ -67,6 +67,7 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash) {
 int main(int argc, char *argv[]) {
   float bleu_threshold = 0.0f;
   bool print_sent_hash = false;
+  bool paragraph_identification = false;
   std::vector<std::string> filenames;  
 
   po::options_description desc("Allowed options");
@@ -74,6 +75,7 @@ int main(int argc, char *argv[]) {
           ("help", "produce help message")
           ("bleu-threshold", po::value(&bleu_threshold), "BLEU threshold for matched sentences")
           ("print-sent-hash", po::bool_switch(&print_sent_hash)->default_value(false), "print Murmurhash hashes of the output sentences")
+          ("paragraph-identification", po::bool_switch(&paragraph_identification)->default_value(false), "sentences from input contain tab separated paragraph identification data")
           ("input-file", po::value(&filenames));
 
   po::positional_options_description positional;
@@ -87,17 +89,17 @@ int main(int argc, char *argv[]) {
     std::cerr << "Reads matched documents from input-files or stdin of none specified, outputs aligned sentences to stdout\n" <<
 	    "Tab-separated fields of the input are url1, url2, text1_base64, text2_base64, text1translated_base64 [ ,text2translated_base64 ]\n" <<
 	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score [ , murmurhash_text1, murmurhash_text2 ]\n\n" <<
-      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [<input-file>...]\n\n" <<
+      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [--paragraph-identification] [<input-file>...]\n\n" <<
 	    desc << std::endl;
     return 1;
   }
 
   if (filenames.empty())
-    Process(std::cin, bleu_threshold, print_sent_hash);
+    Process(std::cin, bleu_threshold, print_sent_hash, paragraph_identification);
   else
     for (std::string const &filename : filenames) {
       std::ifstream fin(filename);
-      Process(fin, bleu_threshold, print_sent_hash);
+      Process(fin, bleu_threshold, print_sent_hash, paragraph_identification);
     }
 
   return 0;

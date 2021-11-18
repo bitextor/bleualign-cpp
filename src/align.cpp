@@ -37,23 +37,45 @@ namespace {
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash) {
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash, bool paragraph_identification) {
 
       utils::matches_vec matches;
 
-      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold);
-      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash);
+      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold, paragraph_identification);
+      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash,
+                               paragraph_identification);
 
     }
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
-               const std::vector<std::string> &text2translated_doc, double threshold) {
+               const std::vector<std::string> &text2translated_doc, double threshold, bool paragraph_identification) {
 
       std::vector<utils::scoremap> scorelist;
-      EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
-      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
-      GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
 
+      if (paragraph_identification)
+      {
+        std::vector<std::string> text1translated_doc_wo_para_info(text1translated_doc.size());
+        std::vector<std::string> text2translated_doc_wo_para_info(text2translated_doc.size());
+
+        for (size_t i = 0; i < text1translated_doc_wo_para_info.size(); ++i)
+        {
+          text1translated_doc_wo_para_info[i] = GetParagraphInfo(text1translated_doc[i])[0];
+        }
+        for (size_t i = 0; i < text2translated_doc_wo_para_info.size(); ++i)
+        {
+          text2translated_doc_wo_para_info[i] = GetParagraphInfo(text2translated_doc[i])[0];
+        }
+
+        EvalSents(scorelist, text1translated_doc_wo_para_info, text2translated_doc_wo_para_info, 2, 3);
+        search::FindMatches(matches, scorelist, text1translated_doc_wo_para_info.size(), text2translated_doc_wo_para_info.size(), float(threshold));
+        GapFiller(matches, text1translated_doc_wo_para_info, text2translated_doc_wo_para_info, 3, threshold);
+      }
+      else
+      {
+        EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
+        search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
+        GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
+      }
     }
 
     /* given list of test sentences and list of reference sentences, calculate bleu scores */
@@ -294,27 +316,82 @@ namespace align {
       }
     }
 
+    std::vector<std::string> GetParagraphInfo(const std::string &sentence)
+    {
+      std::vector<std::string> paragraph_data;
+      utils::SplitString(paragraph_data, sentence, '\t');
+
+      if (paragraph_data.size() != 2)
+      {
+        throw std::runtime_error("Unexpected number of columns! 2 were expected, but got " + std::to_string(paragraph_data.size()));
+      }
+
+      return paragraph_data;
+    }
+
     void WriteAlignedTextToStdout(const utils::matches_vec &matches,
                                 const std::vector<std::string> &text1_doc,
                                 const std::vector<std::string> &text2_doc,
                                 const std::string& url1,
                                 const std::string& url2,
-                                const bool print_sent_hash) {
+                                const bool print_sent_hash,
+                                const bool paragraph_identification) {
 
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
 
-        for (size_t i = m.first.from; i < m.first.to; ++i) {
-          std::cout << text1_doc[i] << ' ';
-        }
-        std::cout << text1_doc[m.first.to] << "\t";
+        std::string paragraph_text1 = "";
+        std::string paragraph_text2 = "";
 
-        for (size_t i = m.second.from; i < m.second.to; ++i) {
-          std::cout << text2_doc[i] << ' ';
+        if (paragraph_identification)
+        {
+          std::vector<std::string> para_inf;
+
+          for (size_t i = m.first.from; i < m.first.to; ++i) {
+            para_inf = GetParagraphInfo(text1_doc[i]);
+            paragraph_text1 += para_inf[1] + "+";
+
+            std::cout << para_inf[0] << ' ';
+          }
+
+          para_inf = GetParagraphInfo(text1_doc[m.first.to]);
+          paragraph_text1 += para_inf[1];
+
+          std::cout << para_inf[0] << "\t";
+
+          for (size_t i = m.second.from; i < m.second.to; ++i) {
+            para_inf = GetParagraphInfo(text2_doc[i]);
+            paragraph_text2 += para_inf[1] + "+";
+
+            std::cout << para_inf[0] << ' ';
+          }
+
+          para_inf = GetParagraphInfo(text2_doc[m.second.to]);
+          paragraph_text2 += para_inf[1];
+
+          std::cout << para_inf[0] << "\t";
         }
-        std::cout << text2_doc[m.second.to] << "\t";
+        else
+        {
+          // print sentences (matches)
+
+          for (size_t i = m.first.from; i < m.first.to; ++i) {
+            std::cout << text1_doc[i] << ' ';
+          }
+          std::cout << text1_doc[m.first.to] << "\t";
+
+          for (size_t i = m.second.from; i < m.second.to; ++i) {
+            std::cout << text2_doc[i] << ' ';
+          }
+          std::cout << text2_doc[m.second.to] << "\t";
+        }
 
         std::cout << std::fixed << std::setprecision(6) << m.score;
+
+        if (paragraph_identification)
+        {
+          std::cout << "\t" << paragraph_text1 << "\t" << paragraph_text2;
+        }
 
         if (print_sent_hash){
             std::cout << "\t";
