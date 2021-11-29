@@ -323,19 +323,24 @@ namespace align {
 
       if (paragraph_data.size() != 2)
       {
-        throw std::runtime_error("Unexpected number of columns! 2 were expected, but got " + std::to_string(paragraph_data.size()));
+        std::cerr << "Warning: unexpected number of columns; 2 were expected, but got ";
+        std::cerr << std::to_string(paragraph_data.size()) << "; returning p-1s-1 as paragraph id" << std::endl;
+
+        paragraph_data.clear();
+        paragraph_data.push_back(paragraph_data[0]);
+        paragraph_data.push_back("p-1s-1");
       }
 
       return paragraph_data;
     }
 
     void WriteAlignedTextToStdout(const utils::matches_vec &matches,
-                                const std::vector<std::string> &text1_doc,
-                                const std::vector<std::string> &text2_doc,
-                                const std::string& url1,
-                                const std::string& url2,
-                                const bool print_sent_hash,
-                                const bool paragraph_identification) {
+                                  const std::vector<std::string> &text1_doc,
+                                  const std::vector<std::string> &text2_doc,
+                                  const std::string& url1,
+                                  const std::string& url2,
+                                  const bool print_sent_hash,
+                                  const bool paragraph_identification) {
 
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
