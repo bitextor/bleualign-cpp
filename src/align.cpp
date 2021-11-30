@@ -347,6 +347,7 @@ namespace align {
 
         std::string paragraph_text1 = "";
         std::string paragraph_text2 = "";
+        std::vector<std::string> text1_doc_wo_paragraph, text2_doc_wo_paragraph;
 
         if (paragraph_identification)
         {
@@ -356,24 +357,28 @@ namespace align {
             para_inf = GetParagraphInfo(text1_doc[i]);
             paragraph_text1 += para_inf[1] + "+";
 
+            text1_doc_wo_paragraph.push_back(para_inf[0]);
             std::cout << para_inf[0] << ' ';
           }
 
           para_inf = GetParagraphInfo(text1_doc[m.first.to]);
           paragraph_text1 += para_inf[1];
 
+          text1_doc_wo_paragraph.push_back(para_inf[0]);
           std::cout << para_inf[0] << "\t";
 
           for (size_t i = m.second.from; i < m.second.to; ++i) {
             para_inf = GetParagraphInfo(text2_doc[i]);
             paragraph_text2 += para_inf[1] + "+";
 
+            text2_doc_wo_paragraph.push_back(para_inf[0]);
             std::cout << para_inf[0] << ' ';
           }
 
           para_inf = GetParagraphInfo(text2_doc[m.second.to]);
           paragraph_text2 += para_inf[1];
 
+          text2_doc_wo_paragraph.push_back(para_inf[0]);
           std::cout << para_inf[0] << "\t";
         }
         else
@@ -398,17 +403,27 @@ namespace align {
           std::cout << "\t" << paragraph_text1 << "\t" << paragraph_text2;
         }
 
-        if (print_sent_hash){
-            std::cout << "\t";
-            for (size_t i = m.first.from; i < m.first.to; ++i) {
-                std::cout << std::hex << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
-            }
-            std::cout << std::hex << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
+        if (print_sent_hash) {
+          std::cout << "\t";
 
-            for (size_t i = m.second.from; i < m.second.to; ++i) {
-                std::cout << std::hex << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
-            }
-            std::cout << std::hex << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
+          size_t first1 = paragraph_identification ? 0 : m.first.from;
+          size_t last1 = paragraph_identification ? m.first.to - m.first.from : m.first.to;
+          size_t first2 = paragraph_identification ? 0 : m.second.from;
+          size_t last2 = paragraph_identification ? m.second.to - m.second.from : m.second.to;
+
+          for (size_t i = first1; i < last1; ++i) {
+            std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text1_doc_wo_paragraph[i].c_str() : text1_doc[i].c_str(),
+                                                            paragraph_identification ? text1_doc_wo_paragraph[i].size() : text1_doc[i].size(), 0) << '+';
+          }
+          std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text1_doc_wo_paragraph[last1].c_str() : text1_doc[last1].c_str(),
+                                                          paragraph_identification ? text1_doc_wo_paragraph[last1].size() : text1_doc[last1].size(), 0) << "\t";
+
+          for (size_t i = first2; i < last2; ++i) {
+            std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text2_doc_wo_paragraph[i].c_str() : text2_doc[i].c_str(),
+                                                            paragraph_identification ? text2_doc_wo_paragraph[i].size() : text2_doc[i].size(), 0) << '+';
+          }
+          std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text2_doc_wo_paragraph[last2].c_str() : text2_doc[last2].c_str(),
+                                                          paragraph_identification ? text2_doc_wo_paragraph[last2].size() : text2_doc[last2].size(), 0);
         }
 
         std::cout << "\n";
