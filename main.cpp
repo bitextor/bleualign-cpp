@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <algorithm>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
@@ -15,8 +16,23 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
   utils::DocumentPair doc_pair;
   std::string line;
   std::vector<std::string> split_line;
+  std::vector<int> header_idxs = {0, 1, 2, 3, 4, 5};
+  std::vector<std::string> header_values = {"src_url", "trg_url", "src_text", "trg_text", "src_translated", "trg_translated"};
 
   size_t n = 0;
+
+  // Read header
+  getline(in, line);
+  utils::SplitString(split_line, line, '\t');
+
+  // Get indexes of the header
+  for (size_t i = 0; i < header_idxs.size(); ++i) {
+    header_idxs[i] = std::find(split_line.begin(), split_line.end(), header_values[i]) - split_line.begin();
+
+    if ((unsigned int)header_idxs[i] == header_idxs.size()) {
+      header_idxs[i] = i;
+    }
+  }
 
   while(getline(in, line)) {
     ++n;
@@ -30,13 +46,13 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
       throw std::runtime_error(error.str());
     }
 
-    doc_pair.url1 = split_line[0];
-    doc_pair.url2 = split_line[1];
-    utils::DecodeAndSplit(doc_pair.text1, split_line[2], '\n', true);
-    utils::DecodeAndSplit(doc_pair.text2, split_line[3], '\n', true);
+    doc_pair.url1 = split_line[header_idxs[0]];
+    doc_pair.url2 = split_line[header_idxs[1]];
+    utils::DecodeAndSplit(doc_pair.text1, split_line[header_idxs[2]], '\n', true);
+    utils::DecodeAndSplit(doc_pair.text2, split_line[header_idxs[3]], '\n', true);
 
     // Processed version of text 1 (i.e. translated to match language text 2)
-    utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n', true);
+    utils::DecodeAndSplit(doc_pair.text1translated, split_line[header_idxs[4]], '\n', true);
     if (doc_pair.text1.size() != doc_pair.text1translated.size()) {
       std::stringstream error;
       error << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
@@ -49,7 +65,7 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
     if (split_line.size() < 6) {
       doc_pair.text2translated = doc_pair.text2;
     } else {
-      utils::DecodeAndSplit(doc_pair.text2translated, split_line[5], '\n', true);
+      utils::DecodeAndSplit(doc_pair.text2translated, split_line[header_idxs[5]], '\n', true);
 
       if (doc_pair.text2.size() != doc_pair.text2translated.size()) {
         std::stringstream error; 
