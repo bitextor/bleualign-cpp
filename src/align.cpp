@@ -341,17 +341,6 @@ namespace align {
                                   const std::string& url2,
                                   const bool print_sent_hash,
                                   const bool paragraph_identification) {
-      // Print header
-      std::cout << "src_url\ttrg_url\tsrc_text\ttrg_text\tbleualign_score";
-
-      if (paragraph_identification)
-        std::cout << "\tsrc_paragraph_id\ttrg_paragraph_id";
-
-      if (print_sent_hash)
-        std::cout << "\tsrc_deferred_hash\ttrg_deferred_hash";
-
-      std::cout << "\n";
-
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
 
