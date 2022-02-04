@@ -8,30 +8,54 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <numeric>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
 
-void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool paragraph_identification) {
-  utils::DocumentPair doc_pair;
+std::vector<int> ProcessHeader(std::istream &in, bool print_sent_hash, bool paragraph_identification) {
   std::string line;
   std::vector<std::string> split_line;
-  std::vector<int> header_idxs = {0, 1, 2, 3, 4, 5};
   std::vector<std::string> header_values = {"src_url", "trg_url", "src_text", "trg_text", "src_translated", "trg_translated"};
+  std::vector<int> header_idxs(header_values.size());
+  size_t mandatory_fields = std::min((size_t)5, header_values.size()); // First, mandatory fields
+  size_t optional_fields = header_values.size() - mandatory_fields ? header_values.size() >= mandatory_fields : 0;
 
-  size_t n = 0;
+  std::iota(std::begin(header_idxs), std::end(header_idxs), 0); // [0, header_values.size())
+
+  if (header_values.size() != header_idxs.size()) {
+    std::stringstream error;
+    error << "Code error: different size for header and idxs values";
+    throw std::runtime_error(error.str());
+  }
+  if (header_values.size() != mandatory_fields + optional_fields) {
+    std::stringstream error;
+    error << "Code error: incorrect values for mandatory and optional values in header fields";
+    throw std::runtime_error(error.str());
+  }
 
   // Read header
   getline(in, line);
   utils::SplitString(split_line, line, '\t');
 
   // Get indexes of the header
-  for (size_t i = 0; i < header_idxs.size(); ++i) {
-    header_idxs[i] = std::find(split_line.begin(), split_line.end(), header_values[i]) - split_line.begin();
+  for (size_t i = 0; i < mandatory_fields + optional_fields; ++i) {
+    auto find_result = std::find(split_line.begin(), split_line.end(), header_values[i]);
 
-    if ((unsigned int)header_idxs[i] == header_idxs.size()) {
-      header_idxs[i] = i;
+    if (find_result == std::end(split_line)) {
+      if (i < mandatory_fields) {
+        // Throw error because we could not find the mandatory field
+        std::stringstream error;
+        error << "Mandatory field '" << header_values[i] << "' not found in header";
+        throw std::runtime_error(error.str());
+      } else {
+        // Optional field not found
+        continue;
+      }
     }
+
+    // Assign the idx of the field
+    header_idxs[i] = find_result - split_line.begin();
   }
 
   // Print output header
@@ -44,6 +68,17 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
     std::cout << "\tsrc_deferred_hash\ttrg_deferred_hash";
 
   std::cout << "\n";
+
+  return header_idxs;
+}
+
+void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool paragraph_identification) {
+  utils::DocumentPair doc_pair;
+  std::string line;
+  std::vector<std::string> split_line;
+  std::vector<int> header_idxs = ProcessHeader(in, print_sent_hash, paragraph_identification);
+
+  size_t n = 0;
 
   while(getline(in, line)) {
     ++n;
