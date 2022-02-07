@@ -7,14 +7,76 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <algorithm>
+#include <numeric>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
+
+std::vector<int> ProcessHeader(std::istream &in, bool print_sent_hash, bool paragraph_identification) {
+  std::string line;
+  std::vector<std::string> split_line;
+  std::vector<std::string> header_values = {"src_url", "trg_url", "src_text", "trg_text", "src_translated", "trg_translated"};
+  std::vector<int> header_idxs(header_values.size());
+  size_t mandatory_fields = std::min((size_t)5, header_values.size()); // First, mandatory fields
+  size_t optional_fields = header_values.size() - mandatory_fields ? header_values.size() >= mandatory_fields : 0;
+
+  std::iota(std::begin(header_idxs), std::end(header_idxs), 0); // [0, header_values.size())
+
+  if (header_values.size() != header_idxs.size()) {
+    std::stringstream error;
+    error << "Code error: different size for header and idxs values";
+    throw std::runtime_error(error.str());
+  }
+  if (header_values.size() != mandatory_fields + optional_fields) {
+    std::stringstream error;
+    error << "Code error: incorrect values for mandatory and optional values in header fields";
+    throw std::runtime_error(error.str());
+  }
+
+  // Read header
+  getline(in, line);
+  utils::SplitString(split_line, line, '\t');
+
+  // Get indexes of the header
+  for (size_t i = 0; i < mandatory_fields + optional_fields; ++i) {
+    auto find_result = std::find(split_line.begin(), split_line.end(), header_values[i]);
+
+    if (find_result == std::end(split_line)) {
+      if (i < mandatory_fields) {
+        // Throw error because we could not find the mandatory field
+        std::stringstream error;
+        error << "Mandatory field '" << header_values[i] << "' not found in header";
+        throw std::runtime_error(error.str());
+      } else {
+        // Optional field not found
+        continue;
+      }
+    }
+
+    // Assign the idx of the field
+    header_idxs[i] = find_result - split_line.begin();
+  }
+
+  // Print output header
+  std::cout << "src_url\ttrg_url\tsrc_text\ttrg_text\tbleualign_score";
+
+  if (paragraph_identification)
+    std::cout << "\tsrc_paragraph_id\ttrg_paragraph_id";
+
+  if (print_sent_hash)
+    std::cout << "\tsrc_deferred_hash\ttrg_deferred_hash";
+
+  std::cout << "\n";
+
+  return header_idxs;
+}
 
 void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool paragraph_identification) {
   utils::DocumentPair doc_pair;
   std::string line;
   std::vector<std::string> split_line;
+  std::vector<int> header_idxs = ProcessHeader(in, print_sent_hash, paragraph_identification);
 
   size_t n = 0;
 
@@ -30,13 +92,13 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
       throw std::runtime_error(error.str());
     }
 
-    doc_pair.url1 = split_line[0];
-    doc_pair.url2 = split_line[1];
-    utils::DecodeAndSplit(doc_pair.text1, split_line[2], '\n', true);
-    utils::DecodeAndSplit(doc_pair.text2, split_line[3], '\n', true);
+    doc_pair.url1 = split_line[header_idxs[0]];
+    doc_pair.url2 = split_line[header_idxs[1]];
+    utils::DecodeAndSplit(doc_pair.text1, split_line[header_idxs[2]], '\n', true);
+    utils::DecodeAndSplit(doc_pair.text2, split_line[header_idxs[3]], '\n', true);
 
     // Processed version of text 1 (i.e. translated to match language text 2)
-    utils::DecodeAndSplit(doc_pair.text1translated, split_line[4], '\n', true);
+    utils::DecodeAndSplit(doc_pair.text1translated, split_line[header_idxs[4]], '\n', true);
     if (doc_pair.text1.size() != doc_pair.text1translated.size()) {
       std::stringstream error;
       error << "On line " << n << " column 3 and 5 don't have an equal number of lines ("
@@ -49,7 +111,7 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, bool 
     if (split_line.size() < 6) {
       doc_pair.text2translated = doc_pair.text2;
     } else {
-      utils::DecodeAndSplit(doc_pair.text2translated, split_line[5], '\n', true);
+      utils::DecodeAndSplit(doc_pair.text2translated, split_line[header_idxs[5]], '\n', true);
 
       if (doc_pair.text2.size() != doc_pair.text2translated.size()) {
         std::stringstream error; 

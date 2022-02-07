@@ -341,7 +341,6 @@ namespace align {
                                   const std::string& url2,
                                   const bool print_sent_hash,
                                   const bool paragraph_identification) {
-
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
 
