@@ -37,23 +37,45 @@ namespace {
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash) {
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash, bool paragraph_identification) {
 
       utils::matches_vec matches;
 
-      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold);
-      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash);
+      Align(matches, doc_pair.text1translated, doc_pair.text2translated, threshold, paragraph_identification);
+      WriteAlignedTextToStdout(matches, doc_pair.text1, doc_pair.text2, doc_pair.url1, doc_pair.url2, print_sent_hash,
+                               paragraph_identification);
 
     }
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
-               const std::vector<std::string> &text2translated_doc, double threshold) {
+               const std::vector<std::string> &text2translated_doc, double threshold, bool paragraph_identification) {
 
       std::vector<utils::scoremap> scorelist;
-      EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
-      search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
-      GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
 
+      if (paragraph_identification)
+      {
+        std::vector<std::string> text1translated_doc_wo_para_info(text1translated_doc.size());
+        std::vector<std::string> text2translated_doc_wo_para_info(text2translated_doc.size());
+
+        for (size_t i = 0; i < text1translated_doc_wo_para_info.size(); ++i)
+        {
+          text1translated_doc_wo_para_info[i] = GetParagraphInfo(text1translated_doc[i])[0];
+        }
+        for (size_t i = 0; i < text2translated_doc_wo_para_info.size(); ++i)
+        {
+          text2translated_doc_wo_para_info[i] = GetParagraphInfo(text2translated_doc[i])[0];
+        }
+
+        EvalSents(scorelist, text1translated_doc_wo_para_info, text2translated_doc_wo_para_info, 2, 3);
+        search::FindMatches(matches, scorelist, text1translated_doc_wo_para_info.size(), text2translated_doc_wo_para_info.size(), float(threshold));
+        GapFiller(matches, text1translated_doc_wo_para_info, text2translated_doc_wo_para_info, 3, threshold);
+      }
+      else
+      {
+        EvalSents(scorelist, text1translated_doc, text2translated_doc, 2, 3);
+        search::FindMatches(matches, scorelist, text1translated_doc.size(), text2translated_doc.size(), float(threshold));
+        GapFiller(matches, text1translated_doc, text2translated_doc, 3, threshold);
+      }
     }
 
     /* given list of test sentences and list of reference sentences, calculate bleu scores */
@@ -294,39 +316,114 @@ namespace align {
       }
     }
 
+    std::vector<std::string> GetParagraphInfo(const std::string &sentence)
+    {
+      std::vector<std::string> paragraph_data;
+      utils::SplitString(paragraph_data, sentence, '\t');
+
+      if (paragraph_data.size() != 2)
+      {
+        std::cerr << "Warning: unexpected number of columns; 2 were expected, but got ";
+        std::cerr << std::to_string(paragraph_data.size()) << "; returning p-1s-1 as paragraph id" << std::endl;
+
+        paragraph_data.clear();
+        paragraph_data.push_back(paragraph_data[0]);
+        paragraph_data.push_back("p-1s-1");
+      }
+
+      return paragraph_data;
+    }
+
     void WriteAlignedTextToStdout(const utils::matches_vec &matches,
-                                const std::vector<std::string> &text1_doc,
-                                const std::vector<std::string> &text2_doc,
-                                const std::string& url1,
-                                const std::string& url2,
-                                const bool print_sent_hash) {
+                                  const std::vector<std::string> &text1_doc,
+                                  const std::vector<std::string> &text2_doc,
+                                  const std::string& url1,
+                                  const std::string& url2,
+                                  const bool print_sent_hash,
+                                  const bool paragraph_identification) {
 
       for (auto m: matches) {
         std::cout << url1 << "\t" << url2 << "\t";
 
-        for (size_t i = m.first.from; i < m.first.to; ++i) {
-          std::cout << text1_doc[i] << ' ';
-        }
-        std::cout << text1_doc[m.first.to] << "\t";
+        std::string paragraph_text1 = "";
+        std::string paragraph_text2 = "";
+        std::vector<std::string> text1_doc_wo_paragraph, text2_doc_wo_paragraph;
 
-        for (size_t i = m.second.from; i < m.second.to; ++i) {
-          std::cout << text2_doc[i] << ' ';
+        if (paragraph_identification)
+        {
+          std::vector<std::string> para_inf;
+
+          for (size_t i = m.first.from; i < m.first.to; ++i) {
+            para_inf = GetParagraphInfo(text1_doc[i]);
+            paragraph_text1 += para_inf[1] + "+";
+
+            text1_doc_wo_paragraph.push_back(para_inf[0]);
+            std::cout << para_inf[0] << ' ';
+          }
+
+          para_inf = GetParagraphInfo(text1_doc[m.first.to]);
+          paragraph_text1 += para_inf[1];
+
+          text1_doc_wo_paragraph.push_back(para_inf[0]);
+          std::cout << para_inf[0] << "\t";
+
+          for (size_t i = m.second.from; i < m.second.to; ++i) {
+            para_inf = GetParagraphInfo(text2_doc[i]);
+            paragraph_text2 += para_inf[1] + "+";
+
+            text2_doc_wo_paragraph.push_back(para_inf[0]);
+            std::cout << para_inf[0] << ' ';
+          }
+
+          para_inf = GetParagraphInfo(text2_doc[m.second.to]);
+          paragraph_text2 += para_inf[1];
+
+          text2_doc_wo_paragraph.push_back(para_inf[0]);
+          std::cout << para_inf[0] << "\t";
         }
-        std::cout << text2_doc[m.second.to] << "\t";
+        else
+        {
+          // print sentences (matches)
+
+          for (size_t i = m.first.from; i < m.first.to; ++i) {
+            std::cout << text1_doc[i] << ' ';
+          }
+          std::cout << text1_doc[m.first.to] << "\t";
+
+          for (size_t i = m.second.from; i < m.second.to; ++i) {
+            std::cout << text2_doc[i] << ' ';
+          }
+          std::cout << text2_doc[m.second.to] << "\t";
+        }
 
         std::cout << std::fixed << std::setprecision(6) << m.score;
 
-        if (print_sent_hash){
-            std::cout << "\t";
-            for (size_t i = m.first.from; i < m.first.to; ++i) {
-                std::cout << std::hex << util::MurmurHashNative(text1_doc[i].c_str(), text1_doc[i].size(), 0) << '+';
-            }
-            std::cout << std::hex << util::MurmurHashNative(text1_doc[m.first.to].c_str(), text1_doc[m.first.to].size(), 0) << "\t";
+        if (paragraph_identification)
+        {
+          std::cout << "\t" << paragraph_text1 << "\t" << paragraph_text2;
+        }
 
-            for (size_t i = m.second.from; i < m.second.to; ++i) {
-                std::cout << std::hex << util::MurmurHashNative(text2_doc[i].c_str(), text2_doc[i].size(), 0) << '+';
-            }
-            std::cout << std::hex << util::MurmurHashNative(text2_doc[m.second.to].c_str(), text2_doc[m.second.to].size(), 0);
+        if (print_sent_hash) {
+          std::cout << "\t";
+
+          size_t first1 = paragraph_identification ? 0 : m.first.from;
+          size_t last1 = paragraph_identification ? m.first.to - m.first.from : m.first.to;
+          size_t first2 = paragraph_identification ? 0 : m.second.from;
+          size_t last2 = paragraph_identification ? m.second.to - m.second.from : m.second.to;
+
+          for (size_t i = first1; i < last1; ++i) {
+            std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text1_doc_wo_paragraph[i].c_str() : text1_doc[i].c_str(),
+                                                            paragraph_identification ? text1_doc_wo_paragraph[i].size() : text1_doc[i].size(), 0) << '+';
+          }
+          std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text1_doc_wo_paragraph[last1].c_str() : text1_doc[last1].c_str(),
+                                                          paragraph_identification ? text1_doc_wo_paragraph[last1].size() : text1_doc[last1].size(), 0) << "\t";
+
+          for (size_t i = first2; i < last2; ++i) {
+            std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text2_doc_wo_paragraph[i].c_str() : text2_doc[i].c_str(),
+                                                            paragraph_identification ? text2_doc_wo_paragraph[i].size() : text2_doc[i].size(), 0) << '+';
+          }
+          std::cout << std::hex << util::MurmurHashNative(paragraph_identification ? text2_doc_wo_paragraph[last2].c_str() : text2_doc[last2].c_str(),
+                                                          paragraph_identification ? text2_doc_wo_paragraph[last2].size() : text2_doc[last2].size(), 0);
         }
 
         std::cout << "\n";

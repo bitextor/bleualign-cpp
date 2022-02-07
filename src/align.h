@@ -12,10 +12,11 @@
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash);
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash,
+                       bool paragraph_identification);
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
-               const std::vector<std::string> &text2_doc, double threshold);
+               const std::vector<std::string> &text2_doc, double threshold, const bool paragraph_identification);
 
     void EvalSents(std::vector<utils::scoremap> &scorelist, const std::vector<std::string> &text1translated_doc,
                    const std::vector<std::string> &text2_doc, unsigned short ngram_size, size_t maxalternatives);
@@ -37,7 +38,11 @@ namespace align {
 
     void FillMatches(std::unique_ptr<int[]> &arr1, std::unique_ptr<int[]> &arr2, utils::match m);
 
-    void WriteAlignedTextToStdout(const utils::matches_vec &matches, const std::vector<std::string> &text1_doc, const std::vector<std::string> &text2_doc, const std::string& url1, const std::string& url2, const bool print_sent_hash);
+    void WriteAlignedTextToStdout(const utils::matches_vec &matches, const std::vector<std::string> &text1_doc,
+                                  const std::vector<std::string> &text2_doc, const std::string& url1, const std::string& url2,
+                                  const bool print_sent_hash, const bool paragraph_identification);
+
+    std::vector<std::string> GetParagraphInfo(const std::string &sentence);
 
 
 } // namespace align
