@@ -13,7 +13,7 @@
 namespace align {
 
     void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash,
-                       bool paragraph_identification);
+                       int paragraph_id_index = -1);
 
     void Align(utils::matches_vec &matches, const std::vector<std::string> &text1translated_doc,
                const std::vector<std::string> &text2_doc, double threshold, const bool paragraph_identification);

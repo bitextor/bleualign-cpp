@@ -37,7 +37,7 @@ namespace {
 
 namespace align {
 
-    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash, bool paragraph_identification) {
+    void AlignDocument(const utils::DocumentPair& doc_pair, double threshold, bool print_sent_hash, int paragraph_id_index) {
 
       utils::matches_vec matches;
 
