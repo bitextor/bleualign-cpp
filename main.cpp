@@ -53,7 +53,11 @@ std::unordered_map<std::string, int> ProcessHeader(std::istream &in, bool print_
     // Not all mandatory fields were provided
     std::stringstream error;
 
-    error << "Mandatory field '" << header_mandatory_values[0] << "' not found in header";
+    error << "Mandatory fields not found in header:";
+
+    for (std::string h : header_mandatory_values) {
+      error << ' ' << h;
+    }
 
     throw std::runtime_error(error.str());
   }
@@ -73,8 +77,7 @@ std::unordered_map<std::string, int> ProcessHeader(std::istream &in, bool print_
   return header;
 }
 
-void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, std::string paragraph_id_header,
-             std::string metadata_headers) {
+void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, std::string metadata_headers) {
   utils::DocumentPair doc_pair;
   std::string line;
   std::vector<std::string> split_line;
@@ -88,28 +91,6 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, std::
   size_t n = 0;
   size_t columns = 0;
   bool metadata = split_metadata_headers.size() != 0 ? true : false;
-  int paragraph_id_index = -1;
-
-  if (!paragraph_id_header.empty()) {
-    // Paragraph identification checks
-
-    if (!metadata) {
-      std::stringstream error;
-      error << "Paragraph identification header field is set but no metadata header fields were provided";
-      throw std::runtime_error(error.str());
-    }
-
-    auto find_result = std::find(split_metadata_headers.begin(), split_metadata_headers.end(), paragraph_id_header);
-
-    if (find_result == std::end(split_metadata_headers)) {
-      std::stringstream error;
-      error << "Paragraph identification header field (" << paragraph_id_header << ") was not found in the metadata fields";
-      throw std::runtime_error(error.str());
-    }
-
-    // Update index
-    paragraph_id_index = find_result - split_metadata_headers.begin();
-  }
 
   while(getline(in, line)) {
     ++n;
@@ -146,22 +127,53 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, std::
 
     // Process metadata, if provided
     if (metadata) {
-      utils::DecodeAndSplit(doc_pair.text1metadata, split_line[header_idxs["src_metadata"]], '\n', true);
-      utils::DecodeAndSplit(doc_pair.text2metadata, split_line[header_idxs["trg_metadata"]], '\n', true);
+      std::vector<std::string> metadata1, metadata2;
+      utils::DecodeAndSplit(metadata1, split_line[header_idxs["src_metadata"]], '\n', true);
+      utils::DecodeAndSplit(metadata2, split_line[header_idxs["trg_metadata"]], '\n', true);
 
-      if (doc_pair.text1.size() != doc_pair.text1metadata.size()) {
+      if (doc_pair.text1.size() != metadata1.size()) {
         std::stringstream error;
         error << "On line " << n << " column " << header_idxs["src_text"] + 1 << " and "
               << header_idxs["src_metadata"] + 1 << " don't have an equal number of lines "
-              << "(" << doc_pair.text1.size() << " vs " << doc_pair.text1metadata.size() << ")";
+              << "(" << doc_pair.text1.size() << " vs " << metadata1.size() << ")";
         throw std::runtime_error(error.str());
       }
-      if (doc_pair.text2.size() != doc_pair.text2metadata.size()) {
+      if (doc_pair.text2.size() != metadata2.size()) {
         std::stringstream error;
         error << "On line " << n << " column " << header_idxs["trg_text"] + 1 << " and "
               << header_idxs["trg_metadata"] + 1 << " don't have an equal number of lines "
-              << "(" << doc_pair.text2.size() << " vs " << doc_pair.text2metadata.size() << ")";
+              << "(" << doc_pair.text2.size() << " vs " << metadata2.size() << ")";
         throw std::runtime_error(error.str());
+      }
+
+      if (doc_pair.text1metadata.size() < doc_pair.text1.size()) {
+        doc_pair.text1metadata.resize(doc_pair.text1.size());
+      }
+      if (doc_pair.text2metadata.size() < doc_pair.text2.size()) {
+        doc_pair.text2metadata.resize(doc_pair.text2.size());
+      }
+
+      for (size_t i = 0; i < metadata1.size(); ++i) {
+        utils::SplitString(doc_pair.text1metadata[i], metadata1[i], '\t');
+
+        if (doc_pair.text1metadata[i].size() != split_metadata_headers.size()) {
+          std::stringstream error;
+          error << "On line " << n << " column " << header_idxs["src_metadata"] + 1 << " "
+                << "has " << doc_pair.text1metadata[i].size() << " fields, but "
+                << split_metadata_headers.size() << " were provided";
+          throw std::runtime_error(error.str());
+        }
+      }
+      for (size_t i = 0; i < metadata2.size(); ++i) {
+        utils::SplitString(doc_pair.text2metadata[i], metadata2[i], '\t');
+
+        if (doc_pair.text2metadata[i].size() != split_metadata_headers.size()) {
+          std::stringstream error;
+          error << "On line " << n << " column " << header_idxs["trg_metadata"] + 1 << " "
+                << "has " << doc_pair.text2metadata[i].size() << " fields, but "
+                << split_metadata_headers.size() << " were provided";
+          throw std::runtime_error(error.str());
+        }
       }
     }
 
@@ -191,7 +203,7 @@ void Process(std::istream &in, float bleu_threshold, bool print_sent_hash, std::
       }
     }
 
-    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash, paragraph_id_index);
+    align::AlignDocument(doc_pair, bleu_threshold, print_sent_hash);
     std::cout << std::flush;
   }
 }
@@ -200,7 +212,6 @@ int main(int argc, char *argv[]) {
   float bleu_threshold = 0.0f;
   bool print_sent_hash = false;
   std::string metadata_header_fields;
-  std::string paragraph_id_header;
   std::vector<std::string> filenames;
 
   po::options_description desc("Allowed options");
@@ -209,7 +220,6 @@ int main(int argc, char *argv[]) {
           ("bleu-threshold", po::value(&bleu_threshold), "BLEU threshold for matched sentences")
           ("print-sent-hash", po::bool_switch(&print_sent_hash)->default_value(false), "print Murmurhash hashes of the output sentences")
           ("metadata-header-fields", po::value(&metadata_header_fields), "language agnostic header fields, comma separated")
-          ("paragraph-id-header", po::value(&paragraph_id_header), "metadata header field of the paragraph identification data")
           ("input-file", po::value(&filenames));
 
   po::positional_options_description positional;
@@ -225,18 +235,18 @@ int main(int argc, char *argv[]) {
       "[ , text1metadata_base64, text2metadata_base64 ]\n" <<
 	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score [ , murmurhash_text1, murmurhash_text2 ]\n"
       "[ , metadata1_text1, metadata1_text2 ...] \n\n" <<
-      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [--metadata-headers <field1>,... \n"
-      "[--paragraph-identification]] [<input-file>...]\n\n" <<
+      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [--metadata-headers <field1>,...]\n"
+      "[<input-file>...]\n\n" <<
 	    desc << std::endl;
     return 1;
   }
 
   if (filenames.empty())
-    Process(std::cin, bleu_threshold, print_sent_hash, paragraph_id_header, metadata_header_fields);
+    Process(std::cin, bleu_threshold, print_sent_hash, metadata_header_fields);
   else
     for (std::string const &filename : filenames) {
       std::ifstream fin(filename);
-      Process(fin, bleu_threshold, print_sent_hash, paragraph_id_header, metadata_header_fields);
+      Process(fin, bleu_threshold, print_sent_hash, metadata_header_fields);
     }
 
   return 0;
