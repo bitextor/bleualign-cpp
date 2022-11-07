@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
       "[ , text1metadata_base64, text2metadata_base64 ]\n" <<
 	    "Tab-separated fields of the output are url1, url2, sent1, sent2, score [ , murmurhash_text1, murmurhash_text2 ]\n"
       "[ , metadata1_text1, metadata1_text2 ...] \n\n" <<
-      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [--metadata-headers <field1>,...]\n"
+      "Usage: " << argv[0] << " [--help] [--bleu-threshold <threshold>] [--print-sent-hash] [--metadata-header-fields <field1>,...]\n"
       "[<input-file>...]\n\n" <<
 	    desc << std::endl;
     return 1;
