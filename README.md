@@ -26,11 +26,11 @@ tests/test_all
 
 Bleualign-cpp takes two texts in two different languages and aligns them to produce parallel sentences. To this end, it also needs a translation of one of these texts.
 
-Input format is `url1 <tab> url2 <tab> text1 <tab> text2 <tab> text1translated [ <tab> text2processed ]` per line. Every text column is encoded as base64. After decoding text columns, they should contain a single sentence per line. The translation (`text1translated`) should correspond line-by-line with the original text (`text1`). The first line will be a header where, following the explained format, the expected fields are: `src_url <tab> trg_url <tab> src_text <tab> trg_text <tab> src_translated [ <tab> trg_translated ]`. The first line of the output will contain a header as well which, deppending on the provided arguments, the fields will be: `src_url <tab> trg_url <tab> src_text <tab> trg_text <tab> bleualign_score [ <tab> src_paragraph_id <tab> trg_paragraph_id ] [ <tab> src_deferred_hash <tab> trg_deferred_hash ]`.
+Input format is `url1 <tab> url2 <tab> text1 <tab> text2 <tab> text1translated [ <tab> text2processed ] [ <tab> text1metadata <tab> text2metadata ]` per line. Every text column is encoded as base64. After decoding text columns, they should contain a single sentence per line. The translation (`text1translated`) should correspond line-by-line with the original text (`text1`). The first line will be a header where, following the explained format, the expected fields are: `src_url <tab> trg_url <tab> src_text <tab> trg_text <tab> src_translated [ <tab> trg_translated ] [ <tab> src_metadata <tab> trg_metadata ]`. The first line of the output will contain a header as well which, depending on the provided arguments, the fields will be: `src_url <tab> trg_url <tab> src_text <tab> trg_text <tab> bleualign_score [ <tab> src_deferred_hash <tab> trg_deferred_hash ] [ <tab> src_metadata_field_1 <tab> trg_metadata_field_1 ... ]`.
 
 Optionally a processed version of `text2` can be provided, as a sixth column, that better matches the processing applied to `text1translated` to help with calculating alignment scores. The output of bleualign will only mention `text1` and `text2`.
 
-Bleualign-cpp outputs aligned sentences to standard output. Output format is: `url1 <tab> url2 <tab> source_sentence <tab> target_sentence <tab> score` per line.
+Bleualign-cpp outputs aligned sentences to standard output. Output format is (mandatory fields only): `url1 <tab> url2 <tab> source_sentence <tab> target_sentence <tab> score` per line.
 
 Bleualign receives input by stdin and writes output to stdout.
 
@@ -38,4 +38,4 @@ Bleualign receives input by stdin and writes output to stdout.
 * **--help** - Print help dialog
 * **--bleu_threshold** - Sentence-level BLEU score threshold (Default: 0.0)
 * **--print-sent-hash** - Print hash for each sentence
-* **--paragraph-identification** - Take into account that the provided text will contain paragraph identificators. If set, there will be expected that each sentence from the base64 document contains `text <tab> paragraph_identificator`
+* **--metadata-header-fields** - Language agnostic comma separated list of metadata header fields (prefix `src_` and `trg_` will be added after)
